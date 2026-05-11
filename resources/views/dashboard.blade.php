@@ -36,8 +36,8 @@
         
         #ws-status { font-size: 0.7rem; padding: 6px 12px; border-radius: 99px; display: flex; align-items: center; gap: 6px; font-weight: 600; }
         .ws-connected { color: var(--success); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); }
-        .ws-connecting { color: var(--accent); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); }
-        .ws-disconnected { color: var(--danger); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); }
+        .ws-connecting, .ws-initialized { color: var(--accent); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); }
+        .ws-disconnected, .ws-failed, .ws-unavailable { color: var(--danger); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); }
 
         .btn-top { padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; display: flex; align-items: center; gap: 6px; text-decoration: none; }
         .btn-top:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); }
@@ -84,6 +84,8 @@
         .modal-content { background: var(--bg); border: 1px solid var(--border); border-radius: 24px; padding: 30px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
         .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(0,0,0,0.5); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
         .toast { position: fixed; bottom: 30px; right: 30px; background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; display: none; z-index: 3000; }
+        .btn-render { width: 100%; padding: 14px; border-radius: 16px; border: none; background: linear-gradient(to right, var(--primary), #818cf8); color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; box-shadow: 0 10px 15px -3px var(--primary-glow); }
+        .btn-render:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px var(--primary-glow); }
     </style>
 </head>
 <body>
@@ -91,7 +93,7 @@
 <div class="top-bar">
     <h1>🎬 Video Factory Studio</h1>
     <div class="top-btns">
-        <div id="ws-status" class="ws-connecting">● Realtime: Connecting...</div>
+        <div id="ws-status" class="ws-connecting">● Realtime: Initializing...</div>
         <a href="/sample_n8n.json" download class="btn-top" style="color:var(--success)"><i data-lucide="download-cloud"></i> Tải mẫu n8n</a>
         <button class="btn-top" onclick="openModal('api-modal')"><i data-lucide="code"></i> API Docs</button>
         <button class="btn-top" onclick="openModal('guide-modal')"><i data-lucide="help-circle"></i> Hướng dẫn</button>
@@ -177,13 +179,13 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Đang dùng XHR Polling qua wss.phung.vn để đảm bảo kết nối 100%.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Hệ thống tự động chuyển đổi giữa WebSocket và Long Polling.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // CHIẾN THUẬT CUỐI: Ép dùng Polling để xuyên qua mọi lớp bảo mật/firewall của Cloudflare
+    // CHIẾN THUẬT SIÊU HIỂN THỊ: Tự động phát hiện và ép Polling nếu cần
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
@@ -193,18 +195,24 @@
         forceTLS: true,
         cluster: 'mt1',
         disableStats: true,
-        enabledTransports: ['xhr_polling', 'xhr_streaming'], // ÉP DÙNG POLLING
+        enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'],
     });
 
     const wsStatus = document.getElementById('ws-status');
-    if (echo.connector && echo.connector.pusher) {
-        echo.connector.pusher.connection.bind('connected', () => {
-            wsStatus.className = 'ws-connected'; wsStatus.innerText = '● Realtime: Connected (Polling Mode)';
-        });
-        echo.connector.pusher.connection.bind('disconnected', () => {
-            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Disconnected';
-        });
-    }
+    
+    // Tự động kiểm tra trạng thái mỗi giây
+    setInterval(() => {
+        if (echo.connector && echo.connector.pusher) {
+            const state = echo.connector.pusher.connection.state;
+            wsStatus.className = 'ws-' + state;
+            if (state === 'connected') {
+                const transport = echo.connector.pusher.connection.transport.name;
+                wsStatus.innerText = '● Realtime: Connected (' + transport + ')';
+            } else {
+                wsStatus.innerText = '● Realtime: ' + state.charAt(0).toUpperCase() + state.slice(1);
+            }
+        }
+    }, 1000);
 
     echo.channel('jobs').listen('.job.updated', (e) => {
         const job = e.job; const el = document.getElementById(`job-${job.id}`);
