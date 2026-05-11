@@ -91,7 +91,7 @@
 <div class="top-bar">
     <h1>🎬 Video Factory Studio</h1>
     <div class="top-btns">
-        <div id="ws-status" class="ws-connecting">● WebSocket: Connecting...</div>
+        <div id="ws-status" class="ws-connecting">● Realtime: Connecting...</div>
         <a href="/sample_n8n.json" download class="btn-top" style="color:var(--success)"><i data-lucide="download-cloud"></i> Tải mẫu n8n</a>
         <button class="btn-top" onclick="openModal('api-modal')"><i data-lucide="code"></i> API Docs</button>
         <button class="btn-top" onclick="openModal('guide-modal')"><i data-lucide="help-circle"></i> Hướng dẫn</button>
@@ -177,31 +177,36 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket kết nối qua cổng 8443 (Cloudflare SSL).</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Đã kích hoạt Long Polling để vượt qua mọi loại tường lửa.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // SỬA LỖI: Dùng cổng 8443 để xuyên thủng Cloudflare
+    // TỐI ƯU: Kích hoạt Long Polling và XHR Streaming
+    // Điều này giúp chạy Realtime ngay trên chính Port 443 của Web mà không bị Cloudflare chặn.
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
         wsHost: window.location.hostname,
-        wsPort: 8443, // Cổng HTTPS được Cloudflare hỗ trợ
-        wssPort: 8443,
+        wsPort: 443,
+        wssPort: 443,
         forceTLS: true,
-        enabledTransports: ['ws', 'wss'],
-        cluster: 'mt1',
+        enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'], // Thêm Polling dự phòng
     });
 
     const wsStatus = document.getElementById('ws-status');
     if (echo.connector && echo.connector.pusher) {
         echo.connector.pusher.connection.bind('connected', () => {
-            wsStatus.className = 'ws-connected'; wsStatus.innerText = '● WebSocket: Connected';
+            wsStatus.className = 'ws-connected'; wsStatus.innerText = '● Realtime: Connected';
         });
         echo.connector.pusher.connection.bind('disconnected', () => {
-            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● WebSocket: Disconnected';
+            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Retrying...';
+        });
+        echo.connector.pusher.connection.bind('state_change', (states) => {
+            if(states.current === 'unavailable') {
+                wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Polling Mode';
+            }
         });
     }
 
