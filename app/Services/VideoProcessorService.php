@@ -209,7 +209,6 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        // Chuẩn hóa Audio chính
         $aFilters = ["[1:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
         $mixing = ["[amain]"];
         $audioInputs = 1;
@@ -221,7 +220,6 @@ class VideoProcessorService
         }
 
         if ($bgMusicPath) { 
-            // Chuẩn hóa Nhạc nền
             $aFilters[] = "[3:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]"; 
             $mixing[] = "[abg]";
             $audioInputs++;
@@ -235,14 +233,15 @@ class VideoProcessorService
         }
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest \"{$outputPath}\" 2>&1";
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -map_metadata -1 -movflags +faststart \"{$outputPath}\" 2>&1";
         
-        $output = shell_exec($cmd);
-        Log::info("Job {$this->job->id} FFmpeg CMD: " . $cmd);
+        Log::info("Job {$this->job->id} Executing: " . $cmd);
+        exec($cmd, $outputArray, $returnCode);
+        $fullLog = implode("\n", $outputArray);
 
-        if (!file_exists($outputPath)) {
-            $logTail = substr((string)$output, -1500);
-            throw new \Exception("FFmpeg failed to create output file. Log: " . $logTail);
+        if (!file_exists($outputPath) || $returnCode !== 0) {
+            Log::error("Job {$this->job->id} FFmpeg Failed. Log: " . $fullLog);
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, -1500));
         }
     }
 

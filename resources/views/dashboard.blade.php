@@ -158,7 +158,12 @@
                         <div class="job-header">
                             <div>
                                 <div class="job-title" style="font-weight:700;">vd-factory-{{ $job->id }}{{ $job->created_at->format('dmY') }}</div>
-                                <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> {{ $job->created_at->format('H:i:s d/m/Y') }}</div>
+                                <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">
+                                    <i data-lucide="calendar" size="12"></i> Tạo: {{ $job->created_at->format('H:i d/m') }}
+                                    @if($job->status === 'completed')
+                                        | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: {{ $job->updated_at->format('H:i d/m') }}
+                                    @endif
+                                </div>
                             </div>
                             <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
                         </div>
@@ -297,6 +302,8 @@
         if (job.status === 'processing' || job.status === 'pending') {
             body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;"><div style="font-size:0.75rem;color:var(--primary);">${job.status_message || 'Đang xử lý...'}</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button></div>`;
         } else if (job.status === 'completed') {
+            const finishTime = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+            el.querySelector('.job-header div div:last-child').innerHTML += ` | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: ${finishTime}`;
             body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
         } else if (job.status === 'failed') {
             body.innerHTML = `<div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: ${job.error_message}</div><button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>`;
