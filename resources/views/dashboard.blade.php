@@ -175,6 +175,7 @@
 
             <div class="card">
                 <h3><i data-lucide="settings"></i> Tinh chỉnh</h3>
+                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
                         <label>Định dạng</label>
@@ -191,6 +192,24 @@
                         </div>
                     </div>
                 </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Kích thước Logo</label>
+                        <div class="slider-box">
+                            <div class="slider-label"><span>Size</span><span id="v-logo-size">200px</span></div>
+                            <input type="range" name="settings[logo_size]" min="50" max="500" value="200" oninput="document.getElementById('v-logo-size').innerText = this.value + 'px'">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tốc độ Logo</label>
+                        <div class="slider-box">
+                            <div class="slider-label"><span>Speed</span><span id="v-logo-speed">1x</span></div>
+                            <input type="range" name="settings[logo_speed]" min="1" max="10" value="5" oninput="document.getElementById('v-logo-speed').innerText = (this.value/5).toFixed(1) + 'x'">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Âm lượng Audio Chính</label>
                     <div class="slider-box">
@@ -198,6 +217,24 @@
                         <input type="range" name="settings[volume_audio]" min="0" max="200" value="100" oninput="document.getElementById('v-vol-audio').innerText = this.value + '%'">
                     </div>
                 </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Âm lượng Nhạc nền</label>
+                        <div class="slider-box">
+                            <div class="slider-label"><span>Mức độ</span><span id="v-vol-music">20%</span></div>
+                            <input type="range" name="settings[volume_music]" min="0" max="100" value="20" oninput="document.getElementById('v-vol-music').innerText = this.value + '%'">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Âm lượng Video gốc</label>
+                        <div class="slider-box">
+                            <div class="slider-label"><span>Mức độ</span><span id="v-vol-video">0%</span></div>
+                            <input type="range" name="settings[volume_video]" min="0" max="100" value="0" oninput="document.getElementById('v-vol-video').innerText = this.value + '%'">
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-render"><i data-lucide="zap"></i> BẮT ĐẦU RENDER</button>
             </div>
         </form>
@@ -232,14 +269,13 @@
     </div>
 </div>
 
-<!-- API MODAL -->
 <div id="api-modal" class="modal">
     <div class="modal-content">
         <div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div>
         <h3><i data-lucide="code"></i> Tài liệu API cho n8n</h3>
         <p>Gửi yêu cầu POST đến endpoint sau để tạo video tự động:</p>
         <pre><code>POST {{ url('/api/video/generate') }}</code></pre>
-        <p>Cấu trúc JSON Body (Bạn có thể tải file mẫu n8n để xem chi tiết):</p>
+        <p>Cấu trúc JSON Body đầy đủ:</p>
         <pre><code>{
   "project_name": "Tên video",
   "audio_url": "Link mp3 giọng đọc (Bắt buộc)",
@@ -250,20 +286,22 @@
     "format": "9:16",
     "auto_subtitle": true,
     "volume_audio": 100,
-    "volume_music": 20
+    "volume_music": 20,
+    "logo_opacity": 80,
+    "logo_size": 200,
+    "logo_speed": 5
   },
   "webhook_url": "Link n8n để nhận kết quả khi xong"
 }</code></pre>
     </div>
 </div>
 
-<!-- GUIDE MODAL -->
 <div id="guide-modal" class="modal">
     <div class="modal-content">
         <div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div>
         <h3><i data-lucide="help-circle"></i> Hướng dẫn sử dụng</h3>
         <ol>
-            <li><strong>Thủ công:</strong> Điền các link audio, video và logo vào form bên trái, sau đó bấm Render.</li>
+            <li><strong>Thủ công:</strong> Điền các link audio, video và logo vào form bên trái, tinh chỉnh âm lượng và hiệu ứng logo, sau đó bấm Render.</li>
             <li><strong>Tự động (n8n):</strong> 
                 <ul>
                     <li>Tải file <b>sample_n8n.json</b> ở nút phía trên.</li>
@@ -271,8 +309,8 @@
                     <li>Điền đầy đủ các cột tương ứng từ file mẫu vào phần Body của n8n.</li>
                 </ul>
             </li>
-            <li><strong>Phụ đề:</strong> Hệ thống sử dụng AI Faster-Whisper để tự tạo phụ đề nhảy chữ viral.</li>
-            <li><strong>Hàng đợi:</strong> Video sẽ được xử lý ngầm, bạn có thể đóng trình duyệt và quay lại sau.</li>
+            <li><strong>Logo Bouncing:</strong> Logo sẽ tự động nảy qua lại trên màn hình để tránh bị che bởi UI TikTok. Bạn có thể chỉnh tốc độ nảy ở thanh trượt.</li>
+            <li><strong>Phụ đề:</strong> Hệ thống sử dụng AI Faster-Whisper để tự tạo phụ đề nhảy chữ viral theo đúng nhịp đọc.</li>
         </ol>
     </div>
 </div>
@@ -284,6 +322,7 @@
     </div>
 </div>
 
+<script src="https://unpkg.com/lucide@latest"></script>
 <script>
     lucide.createIcons();
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
