@@ -178,9 +178,9 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        $audioInputs = 1;
         $aFilters = ["[1:a]volume={$volMain}[amain]"];
         $mixing = ["[amain]"];
+        $audioInputs = 1;
 
         if ($volVideo > 0) {
             $aFilters[] = "[0:a]volume={$volVideo}[avideo]";
@@ -194,15 +194,23 @@ class VideoProcessorService
             $audioInputs++;
         }
         
-        $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first[amixout]";
-        $lastA = "amixout";
+        if ($audioInputs > 1) {
+            $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first[amixout]";
+            $lastA = "amixout";
+        } else {
+            $lastA = "amain";
+        }
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac \"{$outputPath}\" 2>&1";
+        // Thêm -shortest và các tham số tương thích cao
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest \"{$outputPath}\" 2>&1";
         
         $output = shell_exec($cmd);
+        Log::info("Job {$this->job->id} FFmpeg CMD: " . $cmd);
+
         if (!file_exists($outputPath)) {
-            throw new \Exception("FFmpeg failed to create output file. Log: " . substr((string)$output, -500));
+            $logTail = substr((string)$output, -1000);
+            throw new \Exception("FFmpeg failed to create output file. Log: " . $logTail);
         }
     }
 
