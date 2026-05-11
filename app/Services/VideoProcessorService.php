@@ -37,7 +37,7 @@ class VideoProcessorService
     public function process()
     {
         try {
-            $this->updateProgress(5, 'Đang chuẩn bị hệ thống...');
+            $this->updateProgress(5, 'Hệ thống đang khởi động...');
             $this->job->update(['status' => 'processing']);
 
             // 1. Download
@@ -46,15 +46,16 @@ class VideoProcessorService
 
             // 1.5. Subtitles
             if (($this->job->settings['auto_subtitle'] ?? false) === 'on' || ($this->job->settings['auto_subtitle'] ?? false) === true) {
-                $this->updateProgress(30, 'Đang tạo phụ đề động (Faster-Whisper)...');
+                $this->updateProgress(30, 'Đang phân tích giọng nói (AI Whisper)...');
                 $paths['subtitle'] = $this->transcribeAudio($paths['audio']);
+                if (!$paths['subtitle']) Log::warning("Subtitle generation failed or returned null.");
             }
 
             // 2. Duration
             $audioDuration = $this->getDuration($paths['audio']);
 
             // 3. Prepare Video
-            $this->updateProgress(50, 'Đang chuẩn hóa video...');
+            $this->updateProgress(50, 'Đang xử lý khung hình video...');
             $videoPath = $this->prepareVideo($paths['videos'], $audioDuration);
 
             // 4. Render
@@ -65,7 +66,7 @@ class VideoProcessorService
             $outputPath = storage_path("app/public/exports/{$safeProjectName}.mp4");
             if (!file_exists(dirname($outputPath))) mkdir(dirname($outputPath), 0777, true);
 
-            $this->updateProgress(70, 'Đang Render (UltraFast + Bouncing Logo)...');
+            $this->updateProgress(70, 'Đang Render (UltraFast Mode)...');
             $this->render($videoPath, $paths['audio'], $paths['bg_music'] ?? null, $paths['logo'] ?? null, $paths['subtitle'] ?? null, $outputPath, $audioDuration);
             
             $this->updateProgress(100, 'Hoàn thành!');
@@ -77,7 +78,7 @@ class VideoProcessorService
             $this->callWebhook();
 
         } catch (\Exception $e) {
-            Log::error("Video processing failed: " . $e->getMessage());
+            Log::error("CRITICAL ERROR: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             $this->job->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
         } finally {
             $this->cleanup();
@@ -106,7 +107,7 @@ class VideoProcessorService
         $cmd = "\"{$this->ytdlpPath}\" -o \"{$path}.%(ext)s\" \"{$url}\" --no-playlist 2>&1";
         shell_exec($cmd);
         $files = glob("{$path}.*");
-        if (empty($files)) throw new \Exception("Download failed for {$url}");
+        if (empty($files)) throw new \Exception("Download failed for URL: {$url}");
         return $files[0];
     }
 
@@ -121,8 +122,8 @@ class VideoProcessorService
         $normalizedDir = "{$this->tempDir}/normalized";
         if (!file_exists($normalizedDir)) mkdir($normalizedDir, 0777, true);
 
-        $settings = $this->job->settings ?? [];
-        $res = ($settings['format'] ?? '9:16' === '9:16') ? '1080:1920' : '1920:1080';
+        $format = $this->job->settings['format'] ?? '9:16';
+        $res = ($format === '9:16') ? '1080:1920' : '1920:1080';
 
         $normPaths = [];
         foreach ($videoPaths as $i => $path) {
@@ -131,7 +132,7 @@ class VideoProcessorService
             if (file_exists($out)) $normPaths[] = $out;
         }
 
-        if (empty($normPaths)) throw new \Exception("No valid videos.");
+        if (empty($normPaths)) throw new \Exception("No valid video sources to process.");
         if (count($normPaths) === 1) return $normPaths[0];
 
         $listFile = "{$this->tempDir}/list.txt";
@@ -149,16 +150,18 @@ class VideoProcessorService
     {
         $scriptPath = app_path('Services/whisper_service.py');
         $assPath = "{$this->tempDir}/subtitles.ass";
+        // Dùng python trực tiếp, giả định đã có trong PATH
         $cmd = "python \"{$scriptPath}\" \"{$audioPath}\" \"{$assPath}\" 2>&1";
-        Log::info("Whisper Cmd: $cmd");
-        shell_exec($cmd);
+        Log::info("Running Whisper: $cmd");
+        $output = shell_exec($cmd);
+        Log::info("Whisper Result: $output");
         return file_exists($assPath) ? $assPath : null;
     }
 
     protected function render($videoPath, $audioPath, $bgMusicPath, $logoPath, $subtitlePath, $outputPath, $duration)
     {
-        $settings = $this->job->settings ?? [];
-        $res = ($settings['format'] ?? '9:16' === '9:16') ? '1080:1920' : '1920:1080';
+        $format = $this->job->settings['format'] ?? '9:16';
+        $res = ($format === '9:16') ? '1080:1920' : '1920:1080';
 
         $inputs = [];
         $inputs[] = "-stream_loop -1 -i " . escapeshellarg($videoPath); // 0:v
@@ -188,27 +191,36 @@ class VideoProcessorService
 
         if ($logoIdx !== -1) {
             $vFilters[] = "[{$logoIdx}:v]scale=200:-1,format=rgba,colorchannelmixer=aa=0.8[logo]";
+            // Công thức Bounce
             $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,10),5), (W-w)*mod(t,5)/5, (W-w)*(1-mod(t,5)/5))':y='if(lte(mod(t,6),3), (H-h)*mod(t,3)/3, (H-h)*(1-mod(t,3)/3))'[vlogo]";
             $lastV = "vlogo";
         }
 
         $aFilters = [];
-        $volA = ($settings['volume_audio'] ?? 100) / 100;
+        $volA = ($this->job->settings['volume_audio'] ?? 100) / 100;
         $aFilters[] = "[1:a]volume={$volA}[amain]";
         $lastA = "amain";
 
         if ($bgIdx !== -1) {
-            $volM = ($settings['volume_music'] ?? 20) / 100;
+            $volM = ($this->job->settings['volume_music'] ?? 20) / 100;
             $aFilters[] = "[{$bgIdx}:a]volume={$volM}[abg]";
             $aFilters[] = "[{$lastA}][abg]amix=inputs=2:duration=first[amixout]";
             $lastA = "amixout";
         }
 
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . " -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k " . escapeshellarg($outputPath) . " 2>&1";
         
-        Log::info("Final Render Cmd: $cmd");
-        shell_exec($cmd);
+        $command = "ffmpeg -y " . implode(' ', $inputs) . " ";
+        $command .= "-filter_complex " . escapeshellarg($filterStr) . " ";
+        $command .= "-map \"[{$lastV}]\" -map \"[{$lastA}]\" -t " . escapeshellarg($duration) . " ";
+        $command .= "-c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k " . escapeshellarg($outputPath) . " 2>&1";
+
+        Log::info("Final FFmpeg Command: $command");
+        $output = shell_exec($command);
+        
+        if (!file_exists($outputPath) || filesize($outputPath) < 1000) {
+            throw new \Exception("FFmpeg failed. Error: " . substr($output, -500));
+        }
     }
 
     protected function cleanup()
@@ -219,7 +231,7 @@ class VideoProcessorService
                 foreach ($files as $fileinfo) { ($fileinfo->isDir() ? 'rmdir' : 'unlink')($fileinfo->getRealPath()); }
                 rmdir($this->tempDir);
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) { Log::warning("Cleanup error: " . $e->getMessage()); }
     }
 
     protected function callWebhook()
