@@ -66,8 +66,8 @@
         input:checked + .slider-toggle { background-color: var(--primary); }
         input:checked + .slider-toggle:before { transform: translateX(20px); }
 
-        .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-50px); } to { opacity: 1; transform: translateX(0); } }
+        .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; animation: slideIn 0.4s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         
         .job-header { display: flex; justify-content: space-between; align-items: center; }
         .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
@@ -185,7 +185,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Hệ thống tự động sử dụng Polling nếu WebSocket bị chặn.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Realtime siêu nhạy, tự động cập nhật mọi tiến trình.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -235,7 +235,7 @@
             </div>
             <div class="job-body" style="margin-top:12px;">
                 <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress || 0}%"></div></div>
-                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang khởi tạo...'}</div>
+                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang chuẩn bị...'}</div>
             </div>
         `;
         return div;
@@ -245,41 +245,28 @@
         e.preventDefault();
         const btn = document.getElementById('btn-submit');
         const originalText = btn.innerHTML;
-        
         try {
             btn.disabled = true;
             btn.innerHTML = '<i data-lucide="loader" class="spin"></i> ĐANG GỬI...';
             lucide.createIcons();
-
             const formData = new FormData(this);
             const response = await fetch('/generate', {
                 method: 'POST',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-
             if (!response.ok) {
                 const err = await response.json();
                 throw new Error(err.message || 'Lỗi hệ thống');
             }
-
             const result = await response.json();
-            console.log('Server response:', result);
-
-            // CHÈN NGAY Ô MỚI VÀO ĐẦU DANH SÁCH (SỬ DỤNG PREPEND CHO CHẮC CHẮN)
             if (result.job_id && !document.getElementById(`job-${result.job_id}`)) {
                 const container = document.getElementById('job-list-container');
-                const initialJob = {
-                    id: result.job_id,
-                    status: 'pending',
-                    progress: 0,
-                    status_message: 'Đã gửi thành công, đang chờ xử lý...'
-                };
+                const initialJob = { id: result.job_id, status: 'pending', progress: 0, status_message: 'Đã nhận lệnh...' };
                 const el = createJobElement(initialJob);
-                container.prepend(el); // Chèn vào ĐẦU danh sách
+                container.prepend(el);
                 lucide.createIcons();
             }
-
         } catch (error) {
             alert('Lỗi: ' + error.message);
         } finally {
@@ -289,20 +276,19 @@
         }
     });
 
-    echo.channel('jobs').listen('.job.updated', (e) => {
+    // CHẾ ĐỘ NGHE SIÊU NHẠY: Nghe cả job.updated và .job.updated
+    const updateHandler = (e) => {
         const job = e.job; 
+        console.log('Realtime Event Received:', job);
         let el = document.getElementById(`job-${job.id}`);
-        
         if (!el) {
             const container = document.getElementById('job-list-container');
             el = createJobElement(job);
             container.prepend(el);
             lucide.createIcons();
         }
-
         el.querySelector('.status-badge').className = `status-badge status-${job.status}`;
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
-        
         const body = el.querySelector('.job-body');
         if (job.status === 'processing' || job.status === 'pending') {
             body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || ''}</div><button onclick="deleteJob('${job.id}', 'Hủy video này?')" class="btn-action" style="margin-top:10px;color:var(--danger)"><i data-lucide="x-circle" size="14"></i> Hủy</button>`;
@@ -312,7 +298,11 @@
             body.innerHTML = `<div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;margin-bottom:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: ${job.error_message}</div><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>`;
         }
         lucide.createIcons();
-    });
+    };
+
+    echo.channel('jobs')
+        .listen('.job.updated', updateHandler)
+        .listen('job.updated', updateHandler); // Nghe cả 2 biến thể cho chắc chắn
 
     function playVideo(url) {
         const p = document.getElementById('main-player'); p.src = url; document.getElementById('video-modal').style.display = 'flex'; p.play();
