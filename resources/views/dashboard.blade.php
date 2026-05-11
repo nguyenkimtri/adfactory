@@ -66,8 +66,8 @@
         input:checked + .slider-toggle { background-color: var(--primary); }
         input:checked + .slider-toggle:before { transform: translateX(20px); }
 
-        .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-50px); } to { opacity: 1; transform: translateX(0); } }
         
         .job-header { display: flex; justify-content: space-between; align-items: center; }
         .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
@@ -185,7 +185,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Video mới hiện ra TỨC THÌ ngay khi bạn nhấn nút Render.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Hệ thống tự động sử dụng Polling nếu WebSocket bị chặn.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -209,7 +209,6 @@
         if (echo.connector && echo.connector.pusher) {
             const state = echo.connector.pusher.connection.state;
             wsStatus.className = 'ws-' + state;
-            
             if (state === 'connected') {
                 const conn = echo.connector.pusher.connection;
                 const transportName = (conn.transport && conn.transport.name) ? conn.transport.name : 'polling';
@@ -222,7 +221,6 @@
         }
     }, 1000);
 
-    // HÀM CHÈN VIDEO TỨC THÌ
     function createJobElement(job) {
         const div = document.createElement('div');
         div.className = 'job-item';
@@ -237,7 +235,7 @@
             </div>
             <div class="job-body" style="margin-top:12px;">
                 <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress || 0}%"></div></div>
-                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang chuẩn bị...'}</div>
+                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang khởi tạo...'}</div>
             </div>
         `;
         return div;
@@ -266,19 +264,19 @@
             }
 
             const result = await response.json();
-            
-            // CHIẾN THUẬT TỨC THÌ: Chèn ngay ô video vào danh sách khi Server báo OK
-            const initialJob = {
-                id: result.job_id,
-                status: 'pending',
-                progress: 0,
-                status_message: 'Đã nhận lệnh, đang chờ hàng đợi...'
-            };
+            console.log('Server response:', result);
 
-            if (!document.getElementById(`job-${initialJob.id}`)) {
+            // CHÈN NGAY Ô MỚI VÀO ĐẦU DANH SÁCH (SỬ DỤNG PREPEND CHO CHẮC CHẮN)
+            if (result.job_id && !document.getElementById(`job-${result.job_id}`)) {
                 const container = document.getElementById('job-list-container');
+                const initialJob = {
+                    id: result.job_id,
+                    status: 'pending',
+                    progress: 0,
+                    status_message: 'Đã gửi thành công, đang chờ xử lý...'
+                };
                 const el = createJobElement(initialJob);
-                container.insertBefore(el, container.firstChild);
+                container.prepend(el); // Chèn vào ĐẦU danh sách
                 lucide.createIcons();
             }
 
@@ -298,7 +296,7 @@
         if (!el) {
             const container = document.getElementById('job-list-container');
             el = createJobElement(job);
-            container.insertBefore(el, container.firstChild);
+            container.prepend(el);
             lucide.createIcons();
         }
 
