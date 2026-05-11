@@ -17,7 +17,7 @@ class VideoProcessorService
     public function __construct(VideoJob $job)
     {
         $this->job = $job;
-        $this->tempDir = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, storage_path("app/temp/{$job->id}"));
+        $this->tempDir = storage_path("app/temp/{$job->id}");
         
         $ytdlpName = (PHP_OS_FAMILY === 'Windows') ? 'yt-dlp.exe' : 'yt-dlp';
         $localPath = base_path($ytdlpName);
@@ -36,13 +36,13 @@ class VideoProcessorService
     public function process()
     {
         try {
-            $this->updateProgress(5, 'Đang chuẩn bị...');
+            $this->updateProgress(5, 'Server đang xử lý...');
             $this->job->update(['status' => 'processing']);
 
             $paths = $this->downloadResources();
 
             if (($this->job->settings['auto_subtitle'] ?? false) === 'on' || ($this->job->settings['auto_subtitle'] ?? false) === true) {
-                $this->updateProgress(30, 'Đang chạy AI Whisper...');
+                $this->updateProgress(30, 'Đang chạy AI Whisper (Server)...');
                 $paths['subtitle'] = $this->transcribeAudio($paths['audio']);
             }
 
@@ -56,19 +56,19 @@ class VideoProcessorService
             $outputPath = storage_path("app/public/exports/{$safeProjectName}.mp4");
             if (!file_exists(dirname($outputPath))) mkdir(dirname($outputPath), 0777, true);
 
-            $this->updateProgress(70, 'Đang Render (Special Fix)...');
+            $this->updateProgress(70, 'Đang Render Video...');
             $this->render($videoPath, $paths['audio'], $paths['bg_music'] ?? null, $paths['logo'] ?? null, $paths['subtitle'] ?? null, $outputPath, $audioDuration);
             
-            $this->updateProgress(100, 'Xong!');
             $this->job->update([
                 'status' => 'completed',
+                'progress' => 100,
                 'output_path' => asset("storage/exports/{$safeProjectName}.mp4"),
             ]);
 
             $this->callWebhook();
 
         } catch (\Exception $e) {
-            Log::error("FAIL: " . $e->getMessage());
+            Log::error("SERVER ERROR: " . $e->getMessage());
             $this->job->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
         } finally {
             $this->cleanup();
@@ -93,7 +93,7 @@ class VideoProcessorService
     protected function download($url, $filename)
     {
         $safeFilename = Str::slug($filename, '_');
-        $path = "{$this->tempDir}" . DIRECTORY_SEPARATOR . "{$safeFilename}";
+        $path = "{$this->tempDir}/{$safeFilename}";
         $cmd = "\"{$this->ytdlpPath}\" -o \"{$path}.%(ext)s\" \"{$url}\" --no-playlist 2>&1";
         shell_exec($cmd);
         $files = glob("{$path}.*");
@@ -132,12 +132,13 @@ class VideoProcessorService
     protected function transcribeAudio($audioPath)
     {
         $scriptPath = base_path('app/Services/whisper_service.py');
-        $assPath = $this->tempDir . DIRECTORY_SEPARATOR . "subtitles.ass";
-        // Thêm log kiểm tra file script
-        Log::info("Checking Whisper Script: " . (file_exists($scriptPath) ? "OK" : "NOT FOUND at $scriptPath"));
-        $cmd = "python \"{$scriptPath}\" \"{$audioPath}\" \"{$assPath}\" 2>&1";
+        $assPath = "{$this->tempDir}/subtitles.ass";
+        // Tự động chọn python hoặc python3
+        $python = (PHP_OS_FAMILY === 'Windows') ? 'python' : 'python3';
+        $cmd = "{$python} \"{$scriptPath}\" \"{$audioPath}\" \"{$assPath}\" 2>&1";
+        Log::info("Whisper Cmd: $cmd");
         $output = shell_exec($cmd);
-        Log::info("Whisper Result: $output");
+        Log::info("Whisper Output: $output");
         return file_exists($assPath) ? $assPath : null;
     }
 
@@ -146,12 +147,11 @@ class VideoProcessorService
         $res = ($this->job->settings['format'] ?? '9:16' === '9:16') ? '1080:1920' : '1920:1080';
 
         $inputs = [];
-        $inputs[] = "-stream_loop -1 -i \"{$videoPath}\""; // 0:v
-        $inputs[] = "-i \"{$audioPath}\""; // 1:a
+        $inputs[] = "-stream_loop -1 -i \"{$videoPath}\"";
+        $inputs[] = "-i \"{$audioPath}\"";
         
         $logoIdx = -1;
         if ($logoPath && file_exists($logoPath)) {
-            // FIX: Thêm loop 1 để Logo có thể di chuyển
             $inputs[] = "-ignore_loop 0 -loop 1 -i \"{$logoPath}\"";
             $logoIdx = count($inputs) - 1;
         }
@@ -174,7 +174,6 @@ class VideoProcessorService
 
         if ($logoIdx !== -1) {
             $vFilters[] = "[{$logoIdx}:v]scale=200:-1,format=rgba,colorchannelmixer=aa=0.8[logo]";
-            // FIX: Thêm shortest=1 để kết thúc khi video nền kết thúc
             $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,10),5), (W-w)*mod(t,5)/5, (W-w)*(1-mod(t,5)/5))':y='if(lte(mod(t,6),3), (H-h)*mod(t,3)/3, (H-h)*(1-mod(t,3)/3))':shortest=1[vlogo]";
             $lastV = "vlogo";
         }
@@ -192,9 +191,11 @@ class VideoProcessorService
         }
 
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k \"{$outputPath}\" 2>&1";
         
-        Log::info("FFMPEG COMMAND: $cmd");
+        // Quoting linh hoạt cho cả Linux và Windows
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k \"{$outputPath}\" 2>&1";
+
+        Log::info("Render Cmd: $cmd");
         $output = shell_exec($cmd);
         if (!file_exists($outputPath)) throw new \Exception("Render failed: $output");
     }
