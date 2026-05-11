@@ -179,22 +179,22 @@ class VideoProcessorService
 
     protected function render($videoPath, $audioPath, $bgMusicPath, $logoPath, $subtitlePath, $outputPath, $duration) {
         $res = (($this->job->settings['format'] ?? '9:16') === '9:16') ? '1080:1920' : '1920:1080';
-        $inputs = ["-stream_loop -1 -i \"{$videoPath}\"", "-i \"{$audioPath}\""];
         
-        if ($logoPath) $inputs[] = "-ignore_loop 0 -loop 1 -i \"{$logoPath}\"";
-        if ($bgMusicPath) $inputs[] = "-stream_loop -1 -i \"{$bgMusicPath}\"";
+        $inputs = [
+            "-stream_loop -1 -i " . escapeshellarg($videoPath),
+            "-i " . escapeshellarg($audioPath)
+        ];
+        
+        if ($logoPath) $inputs[] = "-ignore_loop 0 -loop 1 -i " . escapeshellarg($logoPath);
+        if ($bgMusicPath) $inputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
         
         $vFilters = ["[0:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res}[vbase]"];
         $lastV = "vbase";
 
         if ($subtitlePath) {
             $realPath = realpath($subtitlePath);
-            if (PHP_OS_FAMILY === 'Windows') {
-                $safeAssPath = str_replace([':', '\\'], ['\\:', '/'], $realPath);
-            } else {
-                // Trên Linux, bộ lọc ass cần thoát dấu hai chấm và phẩy
-                $safeAssPath = str_replace([':', ','], ['\\:', '\\,'], $realPath);
-            }
+            // Cách thoát chuỗi tối giản cho ass filter
+            $safeAssPath = str_replace([':', '\\', "'"], ["\\:", '/', "'\\''"], $realPath);
             $vFilters[] = "[{$lastV}]ass='{$safeAssPath}'[vsub]";
             $lastV = "vsub";
         }
@@ -238,17 +238,15 @@ class VideoProcessorService
         }
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -map_metadata -1 -movflags +faststart \"{$outputPath}\" 2>&1";
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
         $fullLog = implode("\n", $outputArray);
 
         if (!file_exists($outputPath) || $returnCode !== 0) {
-            Log::error("Job {$this->job->id} FFmpeg Failed. Log: " . $fullLog);
-            $logStart = substr($fullLog, 0, 700);
-            $logEnd = substr($fullLog, -700);
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: {$logStart} ... [CUT] ... {$logEnd}");
+            Log::error("Job {$this->job->id} FFmpeg Failed. Full Log: " . $fullLog);
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, 0, 2000));
         }
     }
 
