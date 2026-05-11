@@ -260,16 +260,16 @@ class VideoProcessorService
         }
         $cmd .= " -filter_complex " . escapeshellarg($vFilterStr) . 
                " -map \"[{$lastV}]\" -map 1:a -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -threads 0 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart " . escapeshellarg($outputPath) . " > " . public_path('debug_render.txt') . " 2>&1";
+               " -c:v libx264 -preset ultrafast -threads 0 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart " . escapeshellarg($outputPath) . " >> " . public_path('debug_render.txt') . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing Final: " . $cmd);
         
-        // Dùng shell_exec thay vì exec để tránh tràn bộ đệm biến PHP
-        shell_exec($cmd . " >> " . public_path('debug_render.txt') . " 2>&1");
+        // Dùng exec và chuyển hướng toàn bộ output ra file để tránh Deadlock
+        exec($cmd);
         
         if (!file_exists($outputPath)) {
             $log = @file_get_contents(public_path('debug_render.txt'));
-            throw new \Exception("FFmpeg failed to create output. Log: " . substr($log, -500));
+            throw new \Exception("FFmpeg không tạo được video đầu ra. Nhật ký lỗi: " . substr($log, -500));
         }
     }
 
