@@ -34,5 +34,6 @@ class VideoJob extends Model
         'audio_url' => '[]',
         'bg_music_url' => '[]',
         'settings' => '{"format":"9:16","subtitles":true,"volume_audio":100,"volume_video":0,"volume_music":20}',
+        'status_message' => 'Đang chờ xử lý...',
     ];
 }

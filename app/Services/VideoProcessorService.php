@@ -95,7 +95,8 @@ class VideoProcessorService
     protected function downloadFile($url, $name)
     {
         $path = "{$this->tempDir}/{$name}";
-        $cmd = "yt-dlp -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+        // Lấy cả video và audio tốt nhất, tự động ghép bằng ffmpeg
+        $cmd = "yt-dlp -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         shell_exec($cmd);
         
         $files = glob("{$path}.*");
