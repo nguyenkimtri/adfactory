@@ -220,21 +220,21 @@ class VideoProcessorService
             $audioInputs++;
         }
         
-        // Sử dụng bộ lọc trộn âm thanh (amix) với độ lợi (dropout_transition) bằng 0 để tránh mất tiếng
-        if ($audioInputs > 1) {
+        // Nếu chỉ có 1 nguồn âm (audio chính), map trực tiếp để tránh lỗi amix
+        if ($audioInputs === 1) {
+            $filterStr = implode(';', $vFilters);
+            $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
+                   " -map " . escapeshellarg("[{$lastV}]") . " -map 1:a -t " . escapeshellarg($duration) . 
+                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
+        } else {
+            // Sử dụng bộ trộn amix nếu có nhiều nguồn (nhạc nền, tiếng video...)
             $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first:dropout_transition=0[amixout]";
             $lastA = "amixout";
-        } else {
-            $lastA = "amain";
+            $filterStr = implode(';', array_merge($vFilters, $aFilters));
+            $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
+                   " -map " . escapeshellarg("[{$lastV}]") . " -map " . escapeshellarg("[{$lastA}]") . " -t " . escapeshellarg($duration) . 
+                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         }
-        
-        $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        
-        $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
-               " -map " . escapeshellarg("[{$lastV}]") . 
-               " -map " . escapeshellarg("[{$lastA}]") . 
-               " -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
