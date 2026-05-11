@@ -342,7 +342,10 @@
                 const fill = body.querySelector('.progress-fill');
                 if (fill) fill.style.width = job.progress + '%';
                 const msg = body.querySelector('.status-msg');
-                if (msg) msg.innerHTML = `<span class="pulse"></span> ${job.status_message || 'Đang xử lý...'} (${job.progress}%)`;
+                if (msg) {
+                    const statusText = job.status_message || 'Đang xử lý...';
+                    msg.innerHTML = `<span class="pulse"></span> ${statusText} (${job.progress}%)`;
+                }
             }
             el.dataset.finalized = ""; // Reset trạng thái cuối
         } else {
