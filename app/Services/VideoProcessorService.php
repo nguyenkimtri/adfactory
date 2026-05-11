@@ -93,7 +93,6 @@ class VideoProcessorService
     protected function downloadFile($url, $name)
     {
         $path = "{$this->tempDir}/{$name}";
-        // Dùng yt-dlp để tải từ các nguồn video/audio
         $cmd = "yt-dlp -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         shell_exec($cmd);
         
@@ -123,7 +122,6 @@ class VideoProcessorService
             $filter .= "[{$i}:a]aresample=44100,pan=stereo[a{$i}];";
         }
         $count = count($paths);
-        $filter .= "";
         for($i=0;$i<$count;$i++) $filter .= "[a{$i}]";
         $filter .= "concat=n={$count}:v=0:a=1[outa]";
 
@@ -135,12 +133,17 @@ class VideoProcessorService
     protected function prepareVideo($paths, $duration)
     {
         $outputPath = "{$this->tempDir}/concat.mp4";
+        if (count($paths) === 1) {
+            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -c:v libx264 -preset ultrafast -an " . escapeshellarg($outputPath));
+            return $outputPath;
+        }
+
         $listPath = "{$this->tempDir}/list.txt";
         $content = "";
         foreach ($paths as $p) $content .= "file '" . str_replace("'", "'\\''", $p) . "'\n";
         file_put_contents($listPath, $content);
 
-        $cmd = "ffmpeg -y -f concat -safe 0 -i \"{$listPath}\" -c copy \"{$outputPath}\" 2>&1";
+        $cmd = "ffmpeg -y -f concat -safe 0 -i \"{$listPath}\" -c:v libx264 -preset ultrafast -an \"{$outputPath}\" 2>&1";
         shell_exec($cmd);
         return $outputPath;
     }
@@ -221,33 +224,23 @@ class VideoProcessorService
             $lastA = "amain";
         }
         
-        // --- CHẨN ĐOÁN HỆ THỐNG TRƯỚC KHI CHẠY ---
-        $diagnostic = [];
-        if (!file_exists($videoPath)) $diagnostic[] = "Thiếu file Video: {$videoPath}";
-        if (!file_exists($audioPath)) $diagnostic[] = "Thiếu file Audio: {$audioPath}";
-        
-        if (!empty($diagnostic)) {
-            throw new \Exception("Lỗi tài nguyên hệ thống: " . implode(" | ", $diagnostic));
-        }
-
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
         
         $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
                " -map " . escapeshellarg("[{$lastV}]") . 
                " -map " . escapeshellarg("[{$lastA}]") . 
                " -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k " . escapeshellarg($outputPath) . " 2>&1";
+               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
         $fullLog = implode("\n", $outputArray);
 
-        // Ghi log ra file debug
         @file_put_contents(public_path('debug_render.txt'), "CMD: {$cmd}\n\nLOG:\n{$fullLog}");
 
         if (!file_exists($outputPath) || $returnCode !== 0) {
             Log::error("Job {$this->job->id} FFmpeg Failed. Full Log: " . $fullLog);
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Hãy xem Log tại: " . asset('debug_render.txt'));
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . ($fullLog ?: "No output from FFmpeg"));
         }
     }
 
