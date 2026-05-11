@@ -115,7 +115,8 @@
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
                 <div class="form-group"><label>Audio Chính (MP3)</label><input type="text" name="audio_url" placeholder="Dán link audio MP3..." required></div>
-                <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="raw_video_sources" rows="4" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
+                <!-- SỬA Ở ĐÂY: Đổi tên quay lại video_sources để khớp với Server -->
+                <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="video_sources" rows="4" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
                 
                 <label class="switch-container">
                     <span class="switch-text">Tự động tạo phụ đề AI chuyên nghiệp</span>
@@ -184,7 +185,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Sử dụng AJAX tuyệt đối để tương thích HTTPS hoàn toàn.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Đồng bộ tên trường dữ liệu với Server API.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -221,7 +222,6 @@
         }
     }, 1000);
 
-    // FIX HTTPS: Sử dụng relative path '/generate' thay vì dùng route() helper sinh ra http
     document.getElementById('render-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit');
@@ -233,7 +233,6 @@
             lucide.createIcons();
 
             const formData = new FormData(this);
-            // SỬA Ở ĐÂY: Dùng đường dẫn tương đối để ép dùng chung HTTPS
             const response = await fetch('/generate', {
                 method: 'POST',
                 body: formData,
