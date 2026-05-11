@@ -12,7 +12,13 @@ class VideoController extends Controller
 {
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $data = $request->all();
+        
+        if (isset($data['video_sources']) && is_string($data['video_sources'])) {
+            $data['video_sources'] = array_values(array_filter(array_map('trim', explode("\n", $data['video_sources']))));
+        }
+
+        $validated = validator($data, [
             'project_name' => 'nullable|string',
             'audio_url' => 'required|string',
             'bg_music_url' => 'nullable|string',
@@ -21,7 +27,7 @@ class VideoController extends Controller
             'subtitle_data' => 'nullable|string',
             'settings' => 'nullable|array',
             'webhook_url' => 'nullable|string',
-        ]);
+        ])->validate();
 
         $videoJob = VideoJob::create($validated);
 
