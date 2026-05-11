@@ -79,21 +79,48 @@ class VideoProcessorService
     }
 
     protected function downloadResources() {
-        $audioUrl = is_array($this->job->audio_url) ? ($this->job->audio_url[0] ?? null) : $this->job->audio_url;
-        if (!$audioUrl) throw new \Exception("Thiếu link Audio chính.");
-        
-        $paths = ['audio' => $this->download($audioUrl, 'main_audio')];
-
-        if ($this->job->bg_music_url) {
-            $bgUrl = is_array($this->job->bg_music_url) ? ($this->job->bg_music_url[0] ?? null) : $this->job->bg_music_url;
-            if ($bgUrl) $paths['bg_music'] = $this->download($bgUrl, 'bg_music');
+        // Xử lý nhiều Audio chính (Ghép nối theo thứ tự)
+        $audioUrls = is_array($this->job->audio_url) ? $this->job->audio_url : [$this->job->audio_url];
+        $audioPaths = [];
+        foreach ($audioUrls as $i => $url) {
+            if ($url) $audioPaths[] = $this->download($url, "main_audio_{$i}");
         }
+        if (empty($audioPaths)) throw new \Exception("Thiếu link Audio chính.");
+        $mainAudio = $this->concatAudio($audioPaths, "main_audio_full.mp3");
+
+        $paths = ['audio' => $mainAudio];
+
+        // Xử lý nhiều Nhạc nền (Nếu có)
+        if ($this->job->bg_music_url) {
+            $bgUrls = is_array($this->job->bg_music_url) ? $this->job->bg_music_url : [$this->job->bg_music_url];
+            $bgPaths = [];
+            foreach ($bgUrls as $i => $url) {
+                if ($url) $bgPaths[] = $this->download($url, "bg_music_{$i}");
+            }
+            if (!empty($bgPaths)) {
+                $paths['bg_music'] = $this->concatAudio($bgPaths, "bg_music_full.mp3");
+            }
+        }
+
         if ($this->job->logo_url) $paths['logo'] = $this->download($this->job->logo_url, 'logo');
+        
         $paths['videos'] = [];
         foreach ($this->job->video_sources ?? [] as $i => $url) {
-            $paths['videos'][] = $this->download($url, "v_{$i}");
+            if ($url) $paths['videos'][] = $this->download($url, "v_{$i}");
         }
         return $paths;
+    }
+
+    protected function concatAudio($paths, $outName) {
+        if (count($paths) === 1) return $paths[0];
+        $outPath = "{$this->tempDir}/{$outName}";
+        $inputs = "";
+        foreach ($paths as $p) $inputs .= "-i \"{$p}\" ";
+        $filter = "";
+        for ($i=0; $i<count($paths); $i++) $filter .= "[{$i}:a]";
+        $filter .= "concat=n=" . count($paths) . ":v=0:a=1[aout]";
+        shell_exec("ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[aout]\" -c:a libmp3lame -q:a 2 \"{$outPath}\" 2>&1");
+        return $outPath;
     }
 
     protected function download($url, $filename) {
