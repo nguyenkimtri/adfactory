@@ -66,7 +66,9 @@
         input:checked + .slider-toggle { background-color: var(--primary); }
         input:checked + .slider-toggle:before { transform: translateX(20px); }
 
-        .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; }
+        .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        
         .job-header { display: flex; justify-content: space-between; align-items: center; }
         .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
         .status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; }
@@ -87,6 +89,9 @@
         .btn-render { width: 100%; padding: 14px; border-radius: 16px; border: none; background: linear-gradient(to right, var(--primary), #818cf8); color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; box-shadow: 0 10px 15px -3px var(--primary-glow); }
         .btn-render:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px var(--primary-glow); }
         .btn-render:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -105,7 +110,6 @@
 
 <div class="main-container">
     <div class="sidebar">
-        <!-- Chuyển sang AJAX bằng cách bỏ action và thêm ID -->
         <form id="render-form">
             @csrf
             <div class="card">
@@ -180,7 +184,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Sử dụng AJAX để gửi yêu cầu mà không làm tải lại trang.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Realtime tự động chèn video mới vào danh sách mà không cần tải lại trang.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -232,9 +236,7 @@
             const response = await fetch('{{ route('generate') }}', {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
 
             if (!response.ok) {
@@ -242,10 +244,9 @@
                 throw new Error(err.message || 'Lỗi hệ thống');
             }
 
-            const result = await response.json();
-            // Thành công thì reset form (hoặc giữ lại tùy ý)
-            // this.reset();
-            alert('Đã thêm video vào hàng đợi thành công!');
+            // Sau khi gửi thành công, KHÔNG LÀM GÌ CẢ. 
+            // Realtime sẽ tự động chèn video mới vào danh sách qua Echo bên dưới.
+            console.log('Video submitted successfully');
 
         } catch (error) {
             alert('Lỗi: ' + error.message);
@@ -256,11 +257,43 @@
         }
     });
 
+    // CHỨC NĂNG TỰ ĐỘNG CHÈN VIDEO MỚI VÀO DANH SÁCH
+    function createJobElement(job) {
+        const div = document.createElement('div');
+        div.className = 'job-item';
+        div.id = `job-${job.id}`;
+        div.innerHTML = `
+            <div class="job-header">
+                <div>
+                    <div class="job-title" style="font-weight:700;">${job.project_name || 'Video Job #' + job.id}</div>
+                    <div style="color:var(--text-muted);font-size:0.8rem;">Vừa xong</div>
+                </div>
+                <span class="status-badge status-${job.status}">${job.status}</span>
+            </div>
+            <div class="job-body" style="margin-top:12px;">
+                <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Khởi tạo...</div>
+            </div>
+        `;
+        return div;
+    }
+
     echo.channel('jobs').listen('.job.updated', (e) => {
-        const job = e.job; const el = document.getElementById(`job-${job.id}`);
-        if (!el) { location.reload(); return; }
+        const job = e.job; 
+        let el = document.getElementById(`job-${job.id}`);
+        
+        // NẾU LÀ VIDEO MỚI (Chưa có trong danh sách)
+        if (!el) {
+            const container = document.getElementById('job-list-container');
+            el = createJobElement(job);
+            container.insertBefore(el, container.firstChild); // Chèn vào đầu danh sách
+            lucide.createIcons();
+        }
+
+        // Cập nhật trạng thái và % cho dù là mới hay cũ
         el.querySelector('.status-badge').className = `status-badge status-${job.status}`;
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
+        
         const body = el.querySelector('.job-body');
         if (job.status === 'processing' || job.status === 'pending') {
             body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || ''}</div><button onclick="deleteJob('${job.id}', 'Hủy video này?')" class="btn-action" style="margin-top:10px;color:var(--danger)"><i data-lucide="x-circle" size="14"></i> Hủy</button>`;
