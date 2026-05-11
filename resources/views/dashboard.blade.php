@@ -75,8 +75,11 @@
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .pagination-container nav { display: flex; gap: 5px; }
+        .pagination-container .relative { background: var(--card-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 10px; text-decoration: none; font-size: 0.8rem; }
+        .pagination-container .bg-white { background: var(--primary) !important; color: #000 !important; border-color: var(--primary); }
+        .pagination-container .text-gray-500 { color: var(--text-muted); }
+        .pagination-container span, .pagination-container a { display: flex; align-items: center; justify-content: center; min-width: 38px; height: 38px; }
     </style>
 </head>
 <body>
@@ -241,17 +244,14 @@
             lucide.createIcons();
 
             const formData = new FormData(document.getElementById('generate-form'));
-            const settings = {
-                format: document.getElementById('format').value,
-                logo_opacity: document.getElementById('logo_opacity').value,
-                logo_size: document.getElementById('logo_size').value,
-                logo_speed: document.getElementById('logo_speed').value,
-                volume_audio: document.getElementById('volume_audio').value,
-                volume_video: document.getElementById('volume_video').value,
-                volume_music: document.getElementById('volume_music').value,
-                subtitles: document.querySelector('input[name="subtitles"]').checked
-            };
-            formData.append('settings', JSON.stringify(settings));
+            formData.append('settings[format]', document.getElementById('format').value);
+            formData.append('settings[logo_opacity]', document.getElementById('logo_opacity').value);
+            formData.append('settings[logo_size]', document.getElementById('logo_size').value);
+            formData.append('settings[logo_speed]', document.getElementById('logo_speed').value);
+            formData.append('settings[volume_audio]', document.getElementById('volume_audio').value);
+            formData.append('settings[volume_video]', document.getElementById('volume_video').value);
+            formData.append('settings[volume_music]', document.getElementById('volume_music').value);
+            formData.append('settings[subtitles]', document.querySelector('input[name="subtitles"]').checked ? "1" : "0");
 
             try {
                 const res = await axios.post('/generate', formData);
