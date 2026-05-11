@@ -239,7 +239,11 @@ class VideoProcessorService
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
         
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . " -map [{$lastV}] -map [{$lastA}] -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k " . escapeshellarg($outputPath) . " 2>&1";
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
+               " -map " . escapeshellarg("[{$lastV}]") . 
+               " -map " . escapeshellarg("[{$lastA}]") . 
+               " -t " . escapeshellarg($duration) . 
+               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
