@@ -117,7 +117,12 @@ class VideoProcessorService
         $inputs = "";
         foreach ($paths as $p) $inputs .= "-i \"{$p}\" ";
         $filter = "";
-        for ($i=0; $i<count($paths); $i++) $filter .= "[{$i}:a]";
+        for ($i=0; $i<count($paths); $i++) {
+            $filter .= "[{$i}:a]aresample=44100,pan=stereo[a{$i}];";
+        }
+        for ($i=0; $i<count($paths); $i++) {
+            $filter .= "[a{$i}]";
+        }
         $filter .= "concat=n=" . count($paths) . ":v=0:a=1[aout]";
         shell_exec("ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[aout]\" -c:a libmp3lame -q:a 2 \"{$outPath}\" 2>&1");
         return $outPath;
@@ -193,7 +198,6 @@ class VideoProcessorService
             $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
             $size = $this->job->settings['logo_size'] ?? 200;
             $speed = ($this->job->settings['logo_speed'] ?? 5);
-            // Chu kỳ di chuyển dựa trên tốc độ (Càng nhanh chu kỳ càng ngắn)
             $durX = 15 / $speed; $durY = 11 / $speed;
             
             $vFilters[] = "[2:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
@@ -205,18 +209,20 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        $aFilters = ["[1:a]volume={$volMain}[amain]"];
+        // Chuẩn hóa Audio chính
+        $aFilters = ["[1:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
         $mixing = ["[amain]"];
         $audioInputs = 1;
 
         if ($volVideo > 0) {
-            $aFilters[] = "[0:a]volume={$volVideo}[avideo]";
+            $aFilters[] = "[0:a]aresample=44100,pan=stereo,volume={$volVideo}[avideo]";
             $mixing[] = "[avideo]";
             $audioInputs++;
         }
 
         if ($bgMusicPath) { 
-            $aFilters[] = "[3:a]volume={$volMusic}[abg]"; 
+            // Chuẩn hóa Nhạc nền
+            $aFilters[] = "[3:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]"; 
             $mixing[] = "[abg]";
             $audioInputs++;
         }
@@ -229,14 +235,13 @@ class VideoProcessorService
         }
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        // Thêm -shortest và các tham số tương thích cao
         $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest \"{$outputPath}\" 2>&1";
         
         $output = shell_exec($cmd);
         Log::info("Job {$this->job->id} FFmpeg CMD: " . $cmd);
 
         if (!file_exists($outputPath)) {
-            $logTail = substr((string)$output, -1000);
+            $logTail = substr((string)$output, -1500);
             throw new \Exception("FFmpeg failed to create output file. Log: " . $logTail);
         }
     }
