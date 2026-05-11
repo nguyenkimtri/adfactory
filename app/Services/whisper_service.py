@@ -32,8 +32,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             for word in segment.words:
                 start = format_time(word.start)
                 end = format_time(word.end)
-                text = word.word.strip().upper()
+                # Loại bỏ dấu chấm và dấu phẩy theo yêu cầu
+                text = word.word.strip().upper().replace(',', '').replace('.', '')
                 
+                # Bỏ qua nếu sau khi xóa dấu thì từ bị trống (trường hợp chỉ có dấu)
+                if not text:
+                    continue
+                    
                 # Dynamic Scale/Bounce + Highlight Yellow
                 f.write(f"Dialogue: 0,{start},{end},Default,,0,0,0,,{{\\fscx120\\fscy120\\t(0,100,\\fscx100\\fscy100)\\c&H00FFFF&}}{text}\n")
 
