@@ -181,8 +181,8 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        // --- BƯỚC 1: TRỘN ÂM THANH RIÊNG BIỆT ---
-        $mixedAudioPath = "{$this->tempDir}/final_mixed.m4a";
+        // --- BƯỚC 1: TRỘN ÂM THANH RIÊNG BIỆT (DÙNG MP3 TOÀN DIỆN) ---
+        $mixedAudioPath = "{$this->tempDir}/final_mixed.mp3";
         $aInputs = ["-i " . escapeshellarg($audioPath)];
         $aFilters = ["[0:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
         $aMixing = ["[amain]"];
@@ -209,7 +209,7 @@ class VideoProcessorService
             $aFilterStr .= ";[amain]anull[outa]";
         }
 
-        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -c:a aac -b:a 192k -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
+        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -acodec libmp3lame -b:a 192k -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
         exec($aCmd, $aOutput, $aRet);
         if ($aRet !== 0) throw new \Exception("Lỗi trộn âm thanh: " . implode("\n", $aOutput));
         if (!file_exists($mixedAudioPath)) throw new \Exception("Tệp âm thanh trộn không tồn tại.");
