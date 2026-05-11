@@ -220,8 +220,9 @@ class VideoProcessorService
             $audioInputs++;
         }
         
+        // Sử dụng bộ lọc trộn âm thanh (amix) với độ lợi (dropout_transition) bằng 0 để tránh mất tiếng
         if ($audioInputs > 1) {
-            $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first[amixout]";
+            $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first:dropout_transition=0[amixout]";
             $lastA = "amixout";
         } else {
             $lastA = "amain";
@@ -233,7 +234,7 @@ class VideoProcessorService
                " -map " . escapeshellarg("[{$lastV}]") . 
                " -map " . escapeshellarg("[{$lastA}]") . 
                " -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -shortest " . escapeshellarg($outputPath) . " 2>&1";
+               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);

@@ -10,3 +10,5 @@ Route::get('/', function () {
 });
 
 Route::post('/generate', [App\Http\Controllers\Api\VideoController::class, 'store'])->name('generate');
+Route::get('/status', [App\Http\Controllers\Api\VideoController::class, 'status']);
+Route::delete('/api/jobs/{id}', [App\Http\Controllers\Api\VideoController::class, 'destroy']);
