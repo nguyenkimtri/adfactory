@@ -72,6 +72,7 @@
         .job-header { display: flex; justify-content: space-between; align-items: center; }
         .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
         .status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; }
+        .status-pending { background: rgba(245, 158, 11, 0.1); color: var(--accent); }
         .status-processing { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
         .status-failed { background: rgba(239, 68, 68, 0.1); color: #f87171; }
 
@@ -115,7 +116,6 @@
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
                 <div class="form-group"><label>Audio Chính (MP3)</label><input type="text" name="audio_url" placeholder="Dán link audio MP3..." required></div>
-                <!-- SỬA Ở ĐÂY: Đổi tên quay lại video_sources để khớp với Server -->
                 <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="video_sources" rows="4" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
                 
                 <label class="switch-container">
@@ -185,7 +185,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Đồng bộ tên trường dữ liệu với Server API.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Video mới hiện ra TỨC THÌ ngay khi bạn nhấn nút Render.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -222,6 +222,27 @@
         }
     }, 1000);
 
+    // HÀM CHÈN VIDEO TỨC THÌ
+    function createJobElement(job) {
+        const div = document.createElement('div');
+        div.className = 'job-item';
+        div.id = `job-${job.id}`;
+        div.innerHTML = `
+            <div class="job-header">
+                <div>
+                    <div class="job-title" style="font-weight:700;">${job.project_name || 'Video Job #' + job.id}</div>
+                    <div style="color:var(--text-muted);font-size:0.8rem;">Vừa xong</div>
+                </div>
+                <span class="status-badge status-${job.status}">${job.status}</span>
+            </div>
+            <div class="job-body" style="margin-top:12px;">
+                <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress || 0}%"></div></div>
+                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang chuẩn bị...'}</div>
+            </div>
+        `;
+        return div;
+    }
+
     document.getElementById('render-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit');
@@ -244,7 +265,22 @@
                 throw new Error(err.message || 'Lỗi hệ thống');
             }
 
-            console.log('Video submitted successfully');
+            const result = await response.json();
+            
+            // CHIẾN THUẬT TỨC THÌ: Chèn ngay ô video vào danh sách khi Server báo OK
+            const initialJob = {
+                id: result.job_id,
+                status: 'pending',
+                progress: 0,
+                status_message: 'Đã nhận lệnh, đang chờ hàng đợi...'
+            };
+
+            if (!document.getElementById(`job-${initialJob.id}`)) {
+                const container = document.getElementById('job-list-container');
+                const el = createJobElement(initialJob);
+                container.insertBefore(el, container.firstChild);
+                lucide.createIcons();
+            }
 
         } catch (error) {
             alert('Lỗi: ' + error.message);
@@ -254,26 +290,6 @@
             lucide.createIcons();
         }
     });
-
-    function createJobElement(job) {
-        const div = document.createElement('div');
-        div.className = 'job-item';
-        div.id = `job-${job.id}`;
-        div.innerHTML = `
-            <div class="job-header">
-                <div>
-                    <div class="job-title" style="font-weight:700;">${job.project_name || 'Video Job #' + job.id}</div>
-                    <div style="color:var(--text-muted);font-size:0.8rem;">Vừa xong</div>
-                </div>
-                <span class="status-badge status-${job.status}">${job.status}</span>
-            </div>
-            <div class="job-body" style="margin-top:12px;">
-                <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
-                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Khởi tạo...</div>
-            </div>
-        `;
-        return div;
-    }
 
     echo.channel('jobs').listen('.job.updated', (e) => {
         const job = e.job; 
