@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Models\VideoJob;
 
 Route::get('/', function () {
-    $jobs = VideoJob::latest()->take(10)->get();
+    $jobs = VideoJob::latest()->paginate(5);
     return view('dashboard', compact('jobs'));
 });
 

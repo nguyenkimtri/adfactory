@@ -50,9 +50,9 @@ class VideoProcessorService
             $audioDuration = $this->getDuration($paths['audio']);
             $videoPath = $this->prepareVideo($paths['videos'], $audioDuration);
             
-            $projectName = $this->job->project_name ?? 'video_' . $this->job->id;
-            $safeProjectName = Str::slug($projectName, '_');
-            $outputPath = storage_path("app/public/exports/{$safeProjectName}.mp4");
+            // ĐẶT TÊN THEO CÚ PHÁP: vd-factory-id+ngaythangnam
+            $fileName = "vd-factory-{$this->job->id}+" . now()->format('dmY');
+            $outputPath = storage_path("app/public/exports/{$fileName}.mp4");
             if (!file_exists(dirname($outputPath))) mkdir(dirname($outputPath), 0777, true);
 
             $this->updateProgress(70, 'Đang Render Video Final...');
@@ -61,7 +61,7 @@ class VideoProcessorService
             $this->job->update([
                 'status' => 'completed',
                 'progress' => 100,
-                'output_path' => asset("storage/exports/{$safeProjectName}.mp4"),
+                'output_path' => asset("storage/exports/{$fileName}.mp4"),
             ]);
             broadcast(new VideoJobUpdated($this->job));
             $this->callWebhook();
@@ -79,8 +79,15 @@ class VideoProcessorService
     }
 
     protected function downloadResources() {
-        $paths = ['audio' => $this->download($this->job->audio_url, 'main_audio')];
-        if ($this->job->bg_music_url) $paths['bg_music'] = $this->download($this->job->bg_music_url, 'bg_music');
+        $audioUrl = is_array($this->job->audio_url) ? ($this->job->audio_url[0] ?? null) : $this->job->audio_url;
+        if (!$audioUrl) throw new \Exception("Thiếu link Audio chính.");
+        
+        $paths = ['audio' => $this->download($audioUrl, 'main_audio')];
+
+        if ($this->job->bg_music_url) {
+            $bgUrl = is_array($this->job->bg_music_url) ? ($this->job->bg_music_url[0] ?? null) : $this->job->bg_music_url;
+            if ($bgUrl) $paths['bg_music'] = $this->download($bgUrl, 'bg_music');
+        }
         if ($this->job->logo_url) $paths['logo'] = $this->download($this->job->logo_url, 'logo');
         $paths['videos'] = [];
         foreach ($this->job->video_sources ?? [] as $i => $url) {

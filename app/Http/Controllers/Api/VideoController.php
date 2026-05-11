@@ -14,14 +14,18 @@ class VideoController extends Controller
     {
         $data = $request->all();
         
-        if (isset($data['video_sources']) && is_string($data['video_sources'])) {
-            $data['video_sources'] = array_values(array_filter(array_map('trim', explode("\n", $data['video_sources']))));
+        // Tự động tách các dòng thành mảng cho mọi loại tài nguyên
+        $fieldsToSplit = ['video_sources', 'audio_url', 'bg_music_url'];
+        foreach ($fieldsToSplit as $field) {
+            if (isset($data[$field]) && is_string($data[$field])) {
+                $data[$field] = array_values(array_filter(array_map('trim', explode("\n", $data[$field]))));
+            }
         }
 
         $validated = validator($data, [
             'project_name' => 'nullable|string',
-            'audio_url' => 'required|string',
-            'bg_music_url' => 'nullable|string',
+            'audio_url' => 'required|array',
+            'bg_music_url' => 'nullable|array',
             'video_sources' => 'required|array',
             'logo_url' => 'nullable|string',
             'subtitle_data' => 'nullable|string',
@@ -47,7 +51,8 @@ class VideoController extends Controller
 
     public function status()
     {
-        $jobs = VideoJob::latest()->take(10)->get();
+        // Phân trang 5 video mỗi trang
+        $jobs = VideoJob::latest()->paginate(5);
         return response()->json($jobs);
     }
 
