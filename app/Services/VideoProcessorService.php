@@ -247,19 +247,22 @@ class VideoProcessorService
         }
 
         $vFilterStr = implode(';', $vFilters);
-        $cmd = "ffmpeg -hide_banner -y " . implode(' ', $vInputs) . " -filter_complex " . escapeshellarg($vFilterStr) . 
+        $cmd = "ffmpeg -hide_banner -y -stream_loop -1 -i " . escapeshellarg($videoPath) . " -i " . escapeshellarg($mixedAudioPath);
+        if ($logoPath) {
+            $cmd .= " -loop 1 -i " . escapeshellarg($logoPath);
+        }
+        $cmd .= " -filter_complex " . escapeshellarg($vFilterStr) . 
                " -map \"[{$lastV}]\" -map 1:a -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -threads 0 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart " . escapeshellarg($outputPath) . " 2>&1";
+               " -c:v libx264 -preset ultrafast -threads 0 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart " . escapeshellarg($outputPath) . " > " . public_path('debug_render.txt') . " 2>&1";
         
-        Log::info("Job {$this->job->id} Final Duration: {$duration}");
-        exec($cmd, $outputArray, $returnCode);
-        $fullLog = implode("\n", $outputArray);
+        Log::info("Job {$this->job->id} Executing Final: " . $cmd);
         
-        $debugInfo = "CMD: {$cmd}\n\nDURATION: {$duration}\n\nAUDIO_PATH: {$audioPath}\n\nMIXED_PATH: {$mixedAudioPath}\n\nLOG:\n{$fullLog}";
-        @file_put_contents(public_path('debug_render.txt'), $debugInfo);
-
-        if (!file_exists($outputPath) || $returnCode !== 0) {
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . $fullLog);
+        // Dùng shell_exec thay vì exec để tránh tràn bộ đệm biến PHP
+        shell_exec($cmd);
+        
+        if (!file_exists($outputPath)) {
+            $log = @file_get_contents(public_path('debug_render.txt'));
+            throw new \Exception("FFmpeg failed to create output. Log: " . substr($log, -500));
         }
     }
 
