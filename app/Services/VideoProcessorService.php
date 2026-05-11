@@ -230,11 +230,15 @@ class VideoProcessorService
         if ($aCount > 1) {
             $aFilterStr .= ";" . implode('', $aMixing) . "amix=inputs={$aCount}:duration=first:dropout_transition=0[outa]";
         } else {
-            $aFilterStr .= ";[amain]copy[outa]";
+            // Fix: Không dùng 'copy' trong filter complex, dùng anull hoặc map trực tiếp
+            $aFilterStr .= ";[amain]anull[outa]";
         }
 
-        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath);
-        shell_exec($aCmd);
+        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
+        exec($aCmd, $aOutput, $aRet);
+        if ($aRet !== 0) {
+            throw new \Exception("Lỗi trộn âm thanh (Audio Mixing failed): " . implode("\n", $aOutput));
+        }
 
         // --- BƯỚC CUỐI: GHÉP VIDEO VỚI ÂM THANH ĐÃ TRỘN ---
         $vFilterStr = implode(';', $vFilters);
