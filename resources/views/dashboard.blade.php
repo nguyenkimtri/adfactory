@@ -329,19 +329,25 @@
         if (!body) return;
 
         if (job.status === 'processing' || job.status === 'pending') {
+            // 1. Luôn đảm bảo có thanh tiến trình
             if (!body.querySelector('.progress-bar')) {
                 body.innerHTML = `
                     <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                        <div class="status-msg"><span class="pulse"></span> ${job.status_message || 'Đang xử lý...'} (${job.progress}%)</div>
+                        <div class="status-msg" style="font-size:0.75rem;color:var(--primary);">
+                            <span class="pulse"></span> ${job.status_message || 'Đang xử lý...'} (${job.progress}%)
+                        </div>
                         <button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button>
                     </div>
                 `;
                 lucide.createIcons();
             } else {
+                // 2. Cập nhật % thanh tiến trình
                 const fill = body.querySelector('.progress-fill');
                 if (fill) fill.style.width = job.progress + '%';
-                const msg = body.querySelector('.status-msg');
+                
+                // 3. Cập nhật dòng chữ thông báo (Tìm theo class status-msg)
+                let msg = body.querySelector('.status-msg');
                 if (msg) {
                     const statusText = job.status_message || 'Đang xử lý...';
                     msg.innerHTML = `<span class="pulse"></span> ${statusText} (${job.progress}%)`;
