@@ -157,12 +157,19 @@ class VideoProcessorService
             return $outputPath;
         }
 
-        $listPath = "{$this->tempDir}/list.txt";
-        $content = "";
-        foreach ($paths as $p) $content .= "file '" . str_replace("'", "'\\''", $p) . "'\n";
-        file_put_contents($listPath, $content);
+        $res = (($this->job->settings['format'] ?? '9:16') === '9:16') ? '1080:1920' : '1920:1080';
+        $inputs = "";
+        $filter = "";
+        foreach ($paths as $i => $p) {
+            $inputs .= "-i " . escapeshellarg($p) . " ";
+            // Ép từng video về cùng một size trước khi nối
+            $filter .= "[{$i}:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS[v{$i}];";
+        }
+        $count = count($paths);
+        for($i=0;$i<$count;$i++) $filter .= "[v{$i}]";
+        $filter .= "concat=n={$count}:v=1:a=0[outv]";
 
-        $cmd = "ffmpeg -y -f concat -safe 0 -i \"{$listPath}\" -c:v libx264 -preset ultrafast \"{$outputPath}\" 2>&1";
+        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast \"{$outputPath}\" 2>&1";
         shell_exec($cmd);
         return $outputPath;
     }
