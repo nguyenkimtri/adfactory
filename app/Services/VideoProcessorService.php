@@ -17,7 +17,6 @@ class VideoProcessorService
     public function __construct(VideoJob $job)
     {
         $this->job = $job;
-        // Đảm bảo dùng đường dẫn tuyệt đối chuẩn Windows
         $this->tempDir = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, storage_path("app/temp/{$job->id}"));
         
         $ytdlpName = (PHP_OS_FAMILY === 'Windows') ? 'yt-dlp.exe' : 'yt-dlp';
@@ -31,17 +30,15 @@ class VideoProcessorService
 
     protected function updateProgress($percentage, $message)
     {
-        Log::info("Job #{$this->job->id} Progress: {$percentage}% - {$message}");
         $this->job->update(['progress' => $percentage, 'status_message' => $message]);
     }
 
     public function process()
     {
         try {
-            $this->updateProgress(5, 'Khởi tạo hệ thống...');
+            $this->updateProgress(5, 'Đang chuẩn bị...');
             $this->job->update(['status' => 'processing']);
 
-            $this->updateProgress(10, 'Tải tài nguyên...');
             $paths = $this->downloadResources();
 
             if (($this->job->settings['auto_subtitle'] ?? false) === 'on' || ($this->job->settings['auto_subtitle'] ?? false) === true) {
@@ -50,8 +47,6 @@ class VideoProcessorService
             }
 
             $audioDuration = $this->getDuration($paths['audio']);
-
-            $this->updateProgress(50, 'Chuẩn bị video nền...');
             $videoPath = $this->prepareVideo($paths['videos'], $audioDuration);
 
             $projectName = $this->job->project_name ?? 'video_' . $this->job->id;
@@ -61,10 +56,10 @@ class VideoProcessorService
             $outputPath = storage_path("app/public/exports/{$safeProjectName}.mp4");
             if (!file_exists(dirname($outputPath))) mkdir(dirname($outputPath), 0777, true);
 
-            $this->updateProgress(70, 'Đang Render Final Video...');
+            $this->updateProgress(70, 'Đang Render (Special Fix)...');
             $this->render($videoPath, $paths['audio'], $paths['bg_music'] ?? null, $paths['logo'] ?? null, $paths['subtitle'] ?? null, $outputPath, $audioDuration);
             
-            $this->updateProgress(100, 'Hoàn thành!');
+            $this->updateProgress(100, 'Xong!');
             $this->job->update([
                 'status' => 'completed',
                 'output_path' => asset("storage/exports/{$safeProjectName}.mp4"),
@@ -73,7 +68,7 @@ class VideoProcessorService
             $this->callWebhook();
 
         } catch (\Exception $e) {
-            Log::error("PROCESS FAILED: " . $e->getMessage());
+            Log::error("FAIL: " . $e->getMessage());
             $this->job->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
         } finally {
             $this->cleanup();
@@ -114,57 +109,41 @@ class VideoProcessorService
 
     protected function prepareVideo($videoPaths, $targetDuration)
     {
-        $normalizedDir = "{$this->tempDir}" . DIRECTORY_SEPARATOR . "normalized";
+        $normalizedDir = "{$this->tempDir}/normalized";
         if (!file_exists($normalizedDir)) mkdir($normalizedDir, 0777, true);
-
-        $format = $this->job->settings['format'] ?? '9:16';
-        $res = ($format === '9:16') ? '1080:1920' : '1920:1080';
-
+        $res = ($this->job->settings['format'] ?? '9:16' === '9:16') ? '1080:1920' : '1920:1080';
         $normPaths = [];
         foreach ($videoPaths as $i => $path) {
-            $out = $normalizedDir . DIRECTORY_SEPARATOR . "v_{$i}.mp4";
-            $cmd = "ffmpeg -y -i \"{$path}\" -vf \"scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS\" -r 30 -c:v libx264 -preset superfast -an \"{$out}\" 2>&1";
-            shell_exec($cmd);
+            $out = "{$normalizedDir}/v_{$i}.mp4";
+            shell_exec("ffmpeg -y -i \"{$path}\" -vf \"scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS\" -r 30 -c:v libx264 -preset superfast -an \"{$out}\" 2>&1");
             if (file_exists($out)) $normPaths[] = $out;
         }
-
-        if (empty($normPaths)) throw new \Exception("No normalized videos created.");
+        if (empty($normPaths)) throw new \Exception("No videos.");
         if (count($normPaths) === 1) return $normPaths[0];
-
-        $listFile = "{$this->tempDir}" . DIRECTORY_SEPARATOR . "list.txt";
+        $listFile = "{$this->tempDir}/list.txt";
         $content = "";
         foreach ($normPaths as $p) $content .= "file '" . realpath($p) . "'\n";
         file_put_contents($listFile, $content);
-
-        $concatPath = "{$this->tempDir}" . DIRECTORY_SEPARATOR . "final_loop_source.mp4";
+        $concatPath = "{$this->tempDir}/final_loop_source.mp4";
         shell_exec("ffmpeg -y -f concat -safe 0 -i \"{$listFile}\" -c copy \"{$concatPath}\" 2>&1");
         return file_exists($concatPath) ? $concatPath : $normPaths[0];
     }
 
     protected function transcribeAudio($audioPath)
     {
-        // Dùng base_path để đảm bảo lấy đúng file trên ổ đĩa đang chạy
-        $scriptPath = base_path('app' . DIRECTORY_SEPARATOR . 'Services' . DIRECTORY_SEPARATOR . 'whisper_service.py');
+        $scriptPath = base_path('app/Services/whisper_service.py');
         $assPath = $this->tempDir . DIRECTORY_SEPARATOR . "subtitles.ass";
-        
-        Log::info("Whisper Script Path: $scriptPath");
-        
-        if (!file_exists($scriptPath)) {
-            Log::error("Whisper script NOT FOUND at $scriptPath");
-            return null;
-        }
-
+        // Thêm log kiểm tra file script
+        Log::info("Checking Whisper Script: " . (file_exists($scriptPath) ? "OK" : "NOT FOUND at $scriptPath"));
         $cmd = "python \"{$scriptPath}\" \"{$audioPath}\" \"{$assPath}\" 2>&1";
         $output = shell_exec($cmd);
-        Log::info("Whisper Output: $output");
-        
+        Log::info("Whisper Result: $output");
         return file_exists($assPath) ? $assPath : null;
     }
 
     protected function render($videoPath, $audioPath, $bgMusicPath, $logoPath, $subtitlePath, $outputPath, $duration)
     {
-        $format = $this->job->settings['format'] ?? '9:16';
-        $res = ($format === '9:16') ? '1080:1920' : '1920:1080';
+        $res = ($this->job->settings['format'] ?? '9:16' === '9:16') ? '1080:1920' : '1920:1080';
 
         $inputs = [];
         $inputs[] = "-stream_loop -1 -i \"{$videoPath}\""; // 0:v
@@ -172,7 +151,8 @@ class VideoProcessorService
         
         $logoIdx = -1;
         if ($logoPath && file_exists($logoPath)) {
-            $inputs[] = "-i \"{$logoPath}\"";
+            // FIX: Thêm loop 1 để Logo có thể di chuyển
+            $inputs[] = "-ignore_loop 0 -loop 1 -i \"{$logoPath}\"";
             $logoIdx = count($inputs) - 1;
         }
 
@@ -190,15 +170,13 @@ class VideoProcessorService
             $safeSubPath = str_replace([':', '\\'], ['\\:', '/'], $subtitlePath);
             $vFilters[] = "[{$lastV}]ass='{$safeSubPath}'[vsub]";
             $lastV = "vsub";
-            Log::info("Subtitle added: $safeSubPath");
         }
 
         if ($logoIdx !== -1) {
             $vFilters[] = "[{$logoIdx}:v]scale=200:-1,format=rgba,colorchannelmixer=aa=0.8[logo]";
-            // Filter Bounce (Không dùng escapeshellarg bên trong công thức)
-            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,10),5), (W-w)*mod(t,5)/5, (W-w)*(1-mod(t,5)/5))':y='if(lte(mod(t,6),3), (H-h)*mod(t,3)/3, (H-h)*(1-mod(t,3)/3))'[vlogo]";
+            // FIX: Thêm shortest=1 để kết thúc khi video nền kết thúc
+            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,10),5), (W-w)*mod(t,5)/5, (W-w)*(1-mod(t,5)/5))':y='if(lte(mod(t,6),3), (H-h)*mod(t,3)/3, (H-h)*(1-mod(t,3)/3))':shortest=1[vlogo]";
             $lastV = "vlogo";
-            Log::info("Logo added with Bounce effect");
         }
 
         $aFilters = [];
@@ -214,24 +192,14 @@ class VideoProcessorService
         }
 
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k \"{$outputPath}\" 2>&1";
         
-        // Dùng ngoặc kép bao quanh filter complex và không dùng escapeshellarg cho nó để tránh lỗi Windows
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " ";
-        $cmd .= "-filter_complex \"{$filterStr}\" ";
-        $cmd .= "-map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} ";
-        $cmd .= "-c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k \"{$outputPath}\" 2>&1";
-
-        Log::info("FINAL RENDER COMMAND: $cmd");
+        Log::info("FFMPEG COMMAND: $cmd");
         $output = shell_exec($cmd);
-        
-        if (!file_exists($outputPath) || filesize($outputPath) < 1000) {
-            Log::error("FFMPEG FAILED. Output: $output");
-            throw new \Exception("Render failed.");
-        }
+        if (!file_exists($outputPath)) throw new \Exception("Render failed: $output");
     }
 
-    protected function cleanup()
-    {
+    protected function cleanup() {
         try {
             if (file_exists($this->tempDir)) {
                 $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->tempDir, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
@@ -241,10 +209,7 @@ class VideoProcessorService
         } catch (\Exception $e) {}
     }
 
-    protected function callWebhook()
-    {
-        if ($url = $this->job->webhook_url) {
-            Http::post($url, ['job_id' => $this->job->id, 'status' => 'completed', 'video_url' => $this->job->output_path]);
-        }
+    protected function callWebhook() {
+        if ($url = $this->job->webhook_url) Http::post($url, ['job_id' => $this->job->id, 'status' => 'completed', 'video_url' => $this->job->output_path]);
     }
 }
