@@ -39,21 +39,25 @@ class VideoProcessorService
                 $logoPath = $this->downloadFile($this->job->logo_url, 'logo.png');
             }
 
-            $this->updateProgress(30, 'Đang chuẩn bị dữ liệu...');
+            $this->updateProgress(30, 'Đang nối âm thanh chính...');
             $audioPath = $this->concatAudio($audioPaths, 'main_audio.mp3');
             
             if (!file_exists($audioPath)) throw new \Exception("Không tìm thấy tệp âm thanh chính sau khi xử lý.");
             
+            $this->updateProgress(35, 'Đang chuẩn bị phông nền video...');
             $audioDuration = $this->getDuration($audioPath);
             $videoPath = $this->prepareVideo($videoPaths, $audioDuration);
 
             $subtitlePath = null;
             if ($this->job->settings['subtitles'] ?? true) {
-                $this->updateProgress(40, 'AI đang tạo phụ đề...');
+                $this->updateProgress(40, 'AI đang nghe và tạo phụ đề...');
                 $subtitlePath = $this->transcribeAudio($audioPath);
             }
 
-            $this->updateProgress(70, 'Đang Render Video Final...');
+            $this->updateProgress(60, 'Đang trộn các lớp âm thanh...');
+            // Bước này nằm trong hàm render() nên mình sẽ gọi gián tiếp hoặc cập nhật trong đó
+            
+            $this->updateProgress(70, 'Đang Render Video Final (Vui lòng đợi)...');
             $fileName = 'vd-factory-' . $this->job->id . date('dmY') . '.mp4';
             $outputPath = public_path("exports/{$fileName}");
             if (!file_exists(public_path('exports'))) mkdir(public_path('exports'), 0777, true);
@@ -169,7 +173,7 @@ class VideoProcessorService
         for($i=0;$i<$count;$i++) $filter .= "[v{$i}]";
         $filter .= "concat=n={$count}:v=1:a=0[outv]";
 
-        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast \"{$outputPath}\" 2>&1";
+        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast -threads 0 \"{$outputPath}\" 2>&1";
         shell_exec($cmd);
         return $outputPath;
     }
