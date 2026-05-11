@@ -157,24 +157,35 @@ class VideoProcessorService
         if (count($paths) === 0) throw new \Exception("Không có video nguồn nào.");
 
         if (count($paths) === 1) {
-            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -c:v libx264 -preset ultrafast " . escapeshellarg($outputPath));
+            // Copy trực tiếp nếu chỉ có 1 file, cực nhanh
+            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -c copy " . escapeshellarg($outputPath));
             return $outputPath;
         }
 
-        $res = (($this->job->settings['format'] ?? '9:16') === '9:16') ? '1080:1920' : '1920:1080';
-        $inputs = "";
-        $filter = "";
-        foreach ($paths as $i => $p) {
-            $inputs .= "-i " . escapeshellarg($p) . " ";
-            // Ép từng video về cùng một size trước khi nối
-            $filter .= "[{$i}:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS[v{$i}];";
-        }
-        $count = count($paths);
-        for($i=0;$i<$count;$i++) $filter .= "[v{$i}]";
-        $filter .= "concat=n={$count}:v=1:a=0[outv]";
+        $listPath = "{$this->tempDir}/list.txt";
+        $content = "";
+        foreach ($paths as $p) $content .= "file '" . str_replace("'", "'\\''", $p) . "'\n";
+        file_put_contents($listPath, $content);
 
-        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast -threads 0 \"{$outputPath}\" 2>&1";
+        // Nối trực tiếp (Demuxer) - không nén lại nên tốc độ là tức thời
+        $cmd = "ffmpeg -y -f concat -safe 0 -i \"{$listPath}\" -c copy \"{$outputPath}\" 2>&1";
         shell_exec($cmd);
+        
+        // Nếu nối lỗi (do khác định dạng), lúc này mới dùng filter để cứu vãn
+        if (!file_exists($outputPath) || filesize($outputPath) < 100) {
+            $res = (($this->job->settings['format'] ?? '9:16') === '9:16') ? '1080:1920' : '1920:1080';
+            $inputs = ""; $filter = "";
+            foreach ($paths as $i => $p) {
+                $inputs .= "-i " . escapeshellarg($p) . " ";
+                $filter .= "[{$i}:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS[v{$i}];";
+            }
+            $count = count($paths);
+            for($i=0;$i<$count;$i++) $filter .= "[v{$i}]";
+            $filter .= "concat=n={$count}:v=1:a=0[outv]";
+            $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast -threads 0 \"{$outputPath}\" 2>&1";
+            shell_exec($cmd);
+        }
+        
         return $outputPath;
     }
 
