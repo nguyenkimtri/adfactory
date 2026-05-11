@@ -32,6 +32,10 @@
         .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); flex-shrink: 0; }
         .top-bar h1 { font-size: 1.5rem; margin: 0; background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
         
+        .top-btns { display: flex; gap: 10px; align-items: center; }
+        .btn-top { padding: 8px 14px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+        .btn-top:hover { background: var(--primary); color: #000; border-color: var(--primary); }
+
         #ws-status { font-size: 0.7rem; padding: 6px 12px; border-radius: 99px; display: flex; align-items: center; gap: 6px; font-weight: 600; }
         .ws-connected { color: var(--success); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); }
         .ws-connecting { color: var(--accent); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); }
@@ -75,10 +79,12 @@
         .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 10px; }
-        .modal-content { background: #000; border: 1px solid var(--border); border-radius: 20px; padding: 10px; max-width: 95vw; max-height: 95vh; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(255,255,255,0.2); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
-        #main-player { max-height: 85vh; max-width: 100%; border-radius: 12px; display: block; }
+        /* MODAL STYLES */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: #0f172a; border: 1px solid var(--border); border-radius: 24px; padding: 30px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-close { position: absolute; top: 20px; right: 20px; color: var(--text-muted); cursor: pointer; }
+        .modal h2 { margin-top: 0; color: var(--primary); }
+        .api-block { background: #000; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 0.85rem; margin: 10px 0; border: 1px solid var(--border); overflow-x: auto; color: #34d399; }
 
         .pagination-container { margin-top: auto; padding: 20px 0; display: flex; justify-content: center; gap: 10px; }
         .pagination-btn { padding: 8px 16px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
@@ -95,7 +101,12 @@
 
 <div class="top-bar">
     <h1>🎬 Video Factory Studio</h1>
-    <div id="ws-status" class="ws-connecting">● Realtime: Initializing...</div>
+    <div class="top-btns">
+        <div id="ws-status" class="ws-connecting">● Realtime</div>
+        <button class="btn-top" onclick="openModal('guide-modal')"><i data-lucide="book-open"></i> Hướng dẫn</button>
+        <button class="btn-top" onclick="openModal('api-modal')"><i data-lucide="code"></i> API (n8n)</button>
+        <a href="/video_factory_template.csv" class="btn-top" download><i data-lucide="download"></i> Tải file mẫu</a>
+    </div>
 </div>
 
 <div class="main-container">
@@ -192,7 +203,59 @@
     </div>
 </div>
 
-<div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay></video></div></div>
+<!-- GUIDE MODAL -->
+<div id="guide-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-close" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div>
+        <h2>📖 Hướng dẫn sử dụng</h2>
+        <div style="line-height: 1.6; color: var(--secondary);">
+            <p><strong>Bước 1:</strong> Chuẩn bị Audio (Giọng đọc) và dán link vào ô <em>Audio Chính</em>.</p>
+            <p><strong>Bước 2:</strong> Chọn danh sách Video minh họa (mỗi link 1 dòng). Hệ thống sẽ tự động loop hoặc cắt ghép video để khớp với độ dài Audio.</p>
+            <p><strong>Bước 3:</strong> Cấu hình Logo (nếu có) và chỉnh các thông số Âm lượng, Tốc độ Logo di chuyển.</p>
+            <p><strong>Bước 4:</strong> Bấm <em>BẮT ĐẦU RENDER</em> và chờ hệ thống xử lý thời gian thực.</p>
+            <p><i data-lucide="info" size="14"></i> Mẹo: Bạn có thể dán link <strong>YouTube</strong> hoặc <strong>TikTok</strong> trực tiếp, hệ thống sẽ tự tải về!</p>
+        </div>
+    </div>
+</div>
+
+<!-- API MODAL -->
+<div id="api-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-close" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div>
+        <h2>🔌 Tài liệu API (Dành cho n8n / Tự động hóa)</h2>
+        <p>Sử dụng <strong>HTTP Request</strong> node trong n8n:</p>
+        <div class="api-block">METHOD: POST<br>URL: https://vdfs.phung.vn/generate</div>
+        
+        <p><strong>Cấu trúc JSON (Body):</strong></p>
+        <div class="api-block">
+{
+  "audio_url": ["link-audio-1.mp3"],
+  "video_sources": ["link-youtube-1", "link-tiktok-2"],
+  "bg_music_url": ["link-bg-1.mp3"],
+  "logo_url": "link-logo.png",
+  "settings": {
+    "format": "9:16",
+    "auto_subtitle": true,
+    "logo_opacity": 80,
+    "logo_size": 200,
+    "logo_speed": 5,
+    "volume_audio": 100,
+    "volume_music": 20,
+    "volume_video": 0
+  },
+  "webhook_url": "https://your-n8n-webhook.com"
+}
+        </div>
+        <p><small>* Lưu ý: <code>audio_url</code> và <code>video_sources</code> phải là dạng Mảng (Array).</small></p>
+    </div>
+</div>
+
+<div id="video-modal" class="modal">
+    <div class="modal-content">
+        <div class="video-close-btn" onclick="closeModal('video-modal')"><i data-lucide="x"></i></div>
+        <video id="main-player" controls autoplay style="max-height: 80vh; max-width: 100%; border-radius:12px;"></video>
+    </div>
+</div>
 
 <script>
     lucide.createIcons();
@@ -212,9 +275,9 @@
         }
     }, 1000);
 
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => { alert('Đã copy link video vào bộ nhớ tạm!'); });
-    }
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; if(id === 'video-modal') document.getElementById('main-player').pause(); }
+    function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => alert('Đã copy link video!')); }
 
     function createJobElement(job) {
         const div = document.createElement('div');
@@ -262,8 +325,7 @@
         lucide.createIcons();
     });
 
-    function playVideo(url) { document.getElementById('main-player').src = url; document.getElementById('video-modal').style.display = 'flex'; }
-    function closeVideoModal() { document.getElementById('video-modal').style.display = 'none'; document.getElementById('main-player').pause(); }
+    function playVideo(url) { document.getElementById('main-player').src = url; openModal('video-modal'); }
     function deleteJob(id) { if(confirm('Xóa video này?')) fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }).then(() => location.reload()); }
 </script>
 </body>

@@ -1,0 +1,3 @@
+audio_url,video_sources,bg_music_url,logo_url,settings[format],settings[auto_subtitle],settings[logo_opacity],settings[logo_size],settings[logo_speed],settings[volume_audio],settings[volume_music],settings[volume_video],webhook_url
+"https://example.com/audio.mp3","https://link-video-1.mp4
+https://link-video-2.mp4","https://example.com/bg-music.mp3","https://example.com/logo.png",9:16,true,80,200,5,100,20,0,"https://your-n8n-webhook.com"
