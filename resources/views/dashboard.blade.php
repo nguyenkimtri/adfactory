@@ -108,9 +108,8 @@
             @csrf
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
-                <div class="form-group"><label>Tên dự án</label><input type="text" name="project_name" placeholder="Ví dụ: Video Review Film 01"></div>
-                <div class="form-group"><label>Audio Chính</label><input type="text" name="audio_url" placeholder="Dán link audio MP3..." required></div>
-                <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="raw_video_sources" rows="3" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
+                <div class="form-group"><label>Audio Chính (MP3)</label><input type="text" name="audio_url" placeholder="Dán link audio MP3..." required></div>
+                <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="raw_video_sources" rows="4" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
                 
                 <label class="switch-container">
                     <span class="switch-text">Tự động tạo phụ đề AI chuyên nghiệp</span>
@@ -199,7 +198,6 @@
 
     const wsStatus = document.getElementById('ws-status');
     
-    // Sửa lỗi JS 'name' undefined khi đang connecting
     setInterval(() => {
         if (echo.connector && echo.connector.pusher) {
             const state = echo.connector.pusher.connection.state;
