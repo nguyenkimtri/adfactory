@@ -135,13 +135,14 @@ class VideoProcessorService
         $filter = "";
         foreach ($paths as $i => $p) {
             $inputs .= "-i " . escapeshellarg($p) . " ";
-            $filter .= "[{$i}:a]aresample=44100,pan=stereo[a{$i}];";
+            // Đã loại bỏ pan=stereo, chỉ dùng aresample để đồng bộ tần số
+            $filter .= "[{$i}:a]aresample=44100[a{$i}];";
         }
         $count = count($paths);
         for($i=0;$i<$count;$i++) $filter .= "[a{$i}]";
         $filter .= "concat=n={$count}:v=0:a=1[outa]";
 
-        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outa]\" -ac 2 -ar 44100 " . escapeshellarg($outputPath) . " 2>&1";
+        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outa]\" -acodec libmp3lame -ac 2 -ar 44100 " . escapeshellarg($outputPath) . " 2>&1";
         shell_exec($cmd);
         return $outputPath;
     }
