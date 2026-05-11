@@ -181,8 +181,8 @@
                             <a href="{{ $job->output_path }}" download class="btn-action btn-download"><i data-lucide="download" size="14"></i> Tải về</a>
                             <button onclick="deleteJob('{{ $job->id }}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                         @elseif($job->status === 'failed')
-                            <div style="color:var(--danger);font-size:0.8rem;">Lỗi: {{ Str::limit($job->error_message, 50) }}</div>
-                            <button onclick="deleteJob('{{ $job->id }}')" class="btn-action" style="margin-top:5px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
+                            <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.1);padding:8px;border-radius:8px;margin-bottom:8px;">Lỗi: {{ $job->error_message }}</div>
+                            <button onclick="deleteJob('{{ $job->id }}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                         @endif
                     </div>
                 </div>
@@ -190,6 +190,9 @@
         </div>
     </div>
 </div>
+
+<!-- API MODAL (Giữ nguyên) -->
+<div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
 
 <div id="video-modal" class="modal">
     <div class="modal-content">
@@ -201,13 +204,15 @@
 <script>
     lucide.createIcons();
 
-    // Echo Configuration
+    // Tự động nhận diện config WebSocket từ URL
+    const isHttps = window.location.protocol === 'https:';
     const echo = new Echo({
         broadcaster: 'reverb',
         key: '{{ config('reverb.apps.apps.0.key') }}',
         wsHost: window.location.hostname,
-        wsPort: 8080,
-        forceTLS: window.location.protocol === 'https:',
+        wsPort: isHttps ? 443 : 8080,
+        wssPort: 443,
+        forceTLS: isHttps,
         enabledTransports: ['ws', 'wss'],
     });
 
@@ -215,6 +220,10 @@
     echo.connector.pusher.connection.bind('connected', () => {
         wsStatus.className = 'ws-connected';
         wsStatus.innerText = '● WebSocket: Connected';
+    });
+    echo.connector.pusher.connection.bind('disconnected', () => {
+        wsStatus.className = 'ws-disconnected';
+        wsStatus.innerText = '● WebSocket: Disconnected';
     });
 
     echo.channel('jobs')
@@ -242,6 +251,9 @@
                     <button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                 `;
                 lucide.createIcons();
+            } else if (job.status === 'failed') {
+                body.innerHTML = `<div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.1);padding:8px;border-radius:8px;margin-bottom:8px;">Lỗi: ${job.error_message}</div><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>`;
+                lucide.createIcons();
             }
         });
 
@@ -254,7 +266,6 @@
     }
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    
     function deleteJob(id) {
         if(confirm('Xóa job này?')) {
             fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } })
