@@ -341,9 +341,17 @@
             } else {
                 const fill = body.querySelector('.progress-fill');
                 if (fill) fill.style.width = job.progress + '%';
+                const fill = body.querySelector('.progress-fill');
+                if (fill) fill.style.width = job.progress + '%';
                 const msg = body.querySelector('.status-msg');
                 if (msg) {
-                    const statusText = job.status_message || 'Đang xử lý...';
+                    // Ưu tiên status_message từ server, nếu không có thì dựa vào số %
+                    let statusText = job.status_message;
+                    if (!statusText || statusText === "" || statusText === "null") {
+                        if (job.progress < 30) statusText = "Đang tải tài nguyên...";
+                        else if (job.progress < 70) statusText = "Đang xử lý hình ảnh...";
+                        else statusText = "Đang render video...";
+                    }
                     msg.innerHTML = `<span class="pulse"></span> ${statusText} (${job.progress}%)`;
                 }
             }

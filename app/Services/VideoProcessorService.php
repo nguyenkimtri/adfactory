@@ -166,53 +166,38 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        // --- BƯỚC 1: TRỘN ÂM THANH RIÊNG BIỆT ---
-        $mixedAudioPath = "{$this->tempDir}/final_mixed.m4a";
-        $aInputs = ["-i " . escapeshellarg($audioPath)]; // audioPath luôn là .mp3 từ concatAudio
-        $aFilters = ["[0:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
-        $aMixing = ["[amain]"];
+        // --- QUAY LẠI CÁCH TRỘN TRỰC TIẾP NHƯNG CÓ ĐỒNG BỘ HÓA CAO ---
+        $vInputs = [
+            "-stream_loop -1 -i " . escapeshellarg($videoPath), // 0
+            "-i " . escapeshellarg($audioPath) // 1
+        ];
+        
+        $aFilters = ["[1:a]aresample=async=1:first_pts=0,pan=stereo,volume={$volMain}[amain]"];
+        $mixing = ["[amain]"];
         $aCount = 1;
 
         if ($volVideo > 0) {
-            $aInputs[] = "-i " . escapeshellarg($videoPath);
-            $aFilters[] = "[{$aCount}:a]aresample=44100,pan=stereo,volume={$volVideo}[avideo]";
-            $aMixing[] = "[avideo]";
+            $aFilters[] = "[0:a]aresample=async=1:first_pts=0,pan=stereo,volume={$volVideo}[avideo]";
+            $mixing[] = "[avideo]";
             $aCount++;
         }
 
         if ($bgMusicPath) {
-            $aInputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
-            $aFilters[] = "[{$aCount}:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]";
-            $aMixing[] = "[abg]";
+            $vInputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
+            $bgIdx = count($vInputs) - 1;
+            $aFilters[] = "[{$bgIdx}:a]aresample=async=1:first_pts=0,pan=stereo,volume={$volMusic}[abg]";
+            $mixing[] = "[abg]";
             $aCount++;
         }
 
-        $aFilterStr = implode(';', $aFilters);
-        if ($aCount > 1) {
-            $aFilterStr .= ";" . implode('', $aMixing) . "amix=inputs={$aCount}:duration=first:dropout_transition=0[outa]";
-        } else {
-            $aFilterStr .= ";[amain]anull[outa]";
-        }
-
-        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -c:a aac -b:a 192k -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
-        exec($aCmd, $aOutput, $aRet);
-        if ($aRet !== 0) throw new \Exception("Lỗi trộn âm thanh: " . implode("\n", $aOutput));
-
-        // --- BƯỚC 2: GHÉP VIDEO + LOGO + SUB + AUDIO ĐÃ TRỘN ---
-        $vInputs = [
-            "-stream_loop -1 -i " . escapeshellarg($videoPath), // Index 0
-            "-i " . escapeshellarg($mixedAudioPath) // Index 1
-        ];
-
-        $logoIdx = null;
+        $finalLogoIdx = null;
         if ($logoPath) {
             $vInputs[] = "-loop 1 -i " . escapeshellarg($logoPath);
-            $logoIdx = count($vInputs) - 1;
+            $finalLogoIdx = count($vInputs) - 1;
         }
 
         $vFilters = ["[0:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res}[vbase]"];
         $lastV = "vbase";
-
         if ($subtitlePath) {
             $realPath = realpath($subtitlePath);
             $safeAssPath = str_replace([':', '\\', "'"], ["\\:", '/', "'\\''"], $realPath);
@@ -220,21 +205,29 @@ class VideoProcessorService
             $lastV = "vsub";
         }
 
-        if ($logoIdx !== null) { 
+        if ($finalLogoIdx !== null) {
             $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
             $size = $this->job->settings['logo_size'] ?? 200;
             $speed = ($this->job->settings['logo_speed'] ?? 5);
             $durX = 15 / $speed; $durY = 11 / $speed;
-            
-            $vFilters[] = "[{$logoIdx}:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
-            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))'[vlogo]"; 
-            $lastV = "vlogo"; 
+            $vFilters[] = "[{$finalLogoIdx}:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
+            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))'[vlogo]";
+            $lastV = "vlogo";
+        }
+
+        $aFilterStr = implode(';', $aFilters);
+        if ($aCount > 1) {
+            $aFilterStr .= ";" . implode('', $mixing) . "amix=inputs={$aCount}:duration=first:dropout_transition=0[outa]";
+        } else {
+            $aFilterStr .= ";[amain]anull[outa]";
         }
 
         $vFilterStr = implode(';', $vFilters);
-        $cmd = "ffmpeg -hide_banner -y " . implode(' ', $vInputs) . " -filter_complex " . escapeshellarg($vFilterStr) . 
-               " -map \"[{$lastV}]\" -map 1:0 -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a copy -shortest " . escapeshellarg($outputPath) . " 2>&1";
+        $filterStr = $vFilterStr . ";" . $aFilterStr;
+
+        $cmd = "ffmpeg -hide_banner -y " . implode(' ', $vInputs) . " -filter_complex " . escapeshellarg($filterStr) . 
+               " -map \"[{$lastV}]\" -map \"[outa]\" -t " . escapeshellarg($duration) . 
+               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
