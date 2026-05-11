@@ -56,8 +56,6 @@
         input[type="range"] { -webkit-appearance: none; height: 3px; background: #334155; width: 100%; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; cursor: pointer; }
 
-        .btn-render { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; border: none; padding: 16px; border-radius: 16px; font-weight: 700; font-size: 1rem; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 10px 20px -5px rgba(6, 182, 212, 0.4); }
-
         .switch-container { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 15px; cursor: pointer; }
         .switch-container:hover { background: rgba(255,255,255,0.08); }
         .switch-text { font-size: 0.9rem; font-weight: 600; color: #fff; }
@@ -129,64 +127,18 @@
             <div class="card">
                 <h3><i data-lucide="settings"></i> Tinh chỉnh</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label>Định dạng</label>
-                        <select name="settings[format]">
-                            <option value="9:16">Dọc (9:16)</option>
-                            <option value="16:9">Ngang (16:9)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Độ mờ Logo</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Mức</span><span id="v-logo-op">80%</span></div>
-                            <input type="range" name="settings[logo_opacity]" min="0" max="100" value="80" oninput="document.getElementById('v-logo-op').innerText = this.value + '%'">
-                        </div>
-                    </div>
+                    <div class="form-group"><label>Định dạng</label><select name="settings[format]"><option value="9:16">Dọc (9:16)</option><option value="16:9">Ngang (16:9)</option></select></div>
+                    <div class="form-group"><label>Độ mờ Logo</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-logo-op">80%</span></div><input type="range" name="settings[logo_opacity]" min="0" max="100" value="80" oninput="document.getElementById('v-logo-op').innerText = this.value + '%'"></div></div>
                 </div>
-
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label>Kích thước Logo</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Size</span><span id="v-logo-size">200px</span></div>
-                            <input type="range" name="settings[logo_size]" min="50" max="500" value="200" oninput="document.getElementById('v-logo-size').innerText = this.value + 'px'">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Tốc độ Logo</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Speed</span><span id="v-logo-speed">1x</span></div>
-                            <input type="range" name="settings[logo_speed]" min="1" max="10" value="5" oninput="document.getElementById('v-logo-speed').innerText = (this.value/5).toFixed(1) + 'x'">
-                        </div>
-                    </div>
+                    <div class="form-group"><label>Kích thước Logo</label><div class="slider-box"><div class="slider-label"><span>Size</span><span id="v-logo-size">200px</span></div><input type="range" name="settings[logo_size]" min="50" max="500" value="200" oninput="document.getElementById('v-logo-size').innerText = this.value + 'px'"></div></div>
+                    <div class="form-group"><label>Tốc độ Logo</label><div class="slider-box"><div class="slider-label"><span>Speed</span><span id="v-logo-speed">1x</span></div><input type="range" name="settings[logo_speed]" min="1" max="10" value="5" oninput="document.getElementById('v-logo-speed').innerText = (this.value/5).toFixed(1) + 'x'"></div></div>
                 </div>
-
-                <div class="form-group">
-                    <label>Âm lượng Audio Chính</label>
-                    <div class="slider-box">
-                        <div class="slider-label"><span>Mức độ</span><span id="v-vol-audio">100%</span></div>
-                        <input type="range" name="settings[volume_audio]" min="0" max="200" value="100" oninput="document.getElementById('v-vol-audio').innerText = this.value + '%'">
-                    </div>
-                </div>
-
+                <div class="form-group"><label>Âm lượng Audio</label><div class="slider-box"><div class="slider-label"><span>Mức độ</span><span id="v-vol-audio">100%</span></div><input type="range" name="settings[volume_audio]" min="0" max="200" value="100" oninput="document.getElementById('v-vol-audio').innerText = this.value + '%'"></div></div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label>Âm lượng Nhạc nền</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Mức</span><span id="v-vol-music">20%</span></div>
-                            <input type="range" name="settings[volume_music]" min="0" max="100" value="20" oninput="document.getElementById('v-vol-music').innerText = this.value + '%'">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Âm lượng Video gốc</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Mức</span><span id="v-vol-video">0%</span></div>
-                            <input type="range" name="settings[volume_video]" min="0" max="100" value="0" oninput="document.getElementById('v-vol-video').innerText = this.value + '%'">
-                        </div>
-                    </div>
+                    <div class="form-group"><label>Nhạc nền</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-music">20%</span></div><input type="range" name="settings[volume_music]" min="0" max="100" value="20" oninput="document.getElementById('v-vol-music').innerText = this.value + '%'"></div></div>
+                    <div class="form-group"><label>Video gốc</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-video">0%</span></div><input type="range" name="settings[volume_video]" min="0" max="100" value="0" oninput="document.getElementById('v-vol-video').innerText = this.value + '%'"></div></div>
                 </div>
-
                 <button type="submit" class="btn-render"><i data-lucide="zap"></i> BẮT ĐẦU RENDER</button>
             </div>
         </form>
@@ -198,10 +150,7 @@
             @foreach($jobs as $job)
                 <div class="job-item" id="job-{{ $job->id }}">
                     <div class="job-header">
-                        <div>
-                            <div class="job-title" style="font-weight:700;">{{ $job->project_name ?? 'Video Job #'.$job->id }}</div>
-                            <div style="color:var(--text-muted);font-size:0.8rem;">{{ $job->created_at->diffForHumans() }}</div>
-                        </div>
+                        <div><div class="job-title" style="font-weight:700;">{{ $job->project_name ?? 'Video Job #'.$job->id }}</div><div style="color:var(--text-muted);font-size:0.8rem;">{{ $job->created_at->diffForHumans() }}</div></div>
                         <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
                     </div>
                     <div class="job-body" style="margin-top:12px;">
@@ -228,27 +177,25 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket tự động kết nối qua SSL của Cloudflare.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket kết nối qua cổng 8443 (Cloudflare SSL).</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // SỬA LỖI: Dùng broadcaster 'pusher' để tương thích tốt nhất với Reverb CDN
+    // SỬA LỖI: Dùng cổng 8443 để xuyên thủng Cloudflare
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
         wsHost: window.location.hostname,
-        wsPort: 443,
-        wssPort: 443,
+        wsPort: 8443, // Cổng HTTPS được Cloudflare hỗ trợ
+        wssPort: 8443,
         forceTLS: true,
         enabledTransports: ['ws', 'wss'],
-        cluster: 'mt1', // Reverb không dùng cluster nhưng Pusher-js yêu cầu
+        cluster: 'mt1',
     });
 
     const wsStatus = document.getElementById('ws-status');
-    
-    // Kiểm tra kết nối an toàn
     if (echo.connector && echo.connector.pusher) {
         echo.connector.pusher.connection.bind('connected', () => {
             wsStatus.className = 'ws-connected'; wsStatus.innerText = '● WebSocket: Connected';
@@ -292,14 +239,6 @@
             fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }).then(() => location.reload());
         }
     }
-
-    document.getElementById('main-form').onsubmit = function(e) {
-        const textarea = this.querySelector('textarea[name="raw_video_sources"]');
-        const lines = textarea.value.split('\n').filter(l => l.trim() !== '');
-        lines.forEach(line => {
-            const input = document.createElement('input'); input.type = 'hidden'; input.name = 'video_sources[]'; input.value = line.trim(); this.appendChild(input);
-        });
-    };
 </script>
 </body>
 </html>
