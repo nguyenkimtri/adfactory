@@ -83,9 +83,17 @@
         .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-content { background: var(--bg); border: 1px solid var(--border); border-radius: 24px; padding: 30px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
-        .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(0,0,0,0.5); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
+        /* MODAL VIDEO TINH CHỈNH */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 10px; }
+        .modal-content { 
+            background: #000; border: 1px solid var(--border); border-radius: 20px; padding: 10px; 
+            max-width: 95vw; max-height: 95vh; overflow: hidden; position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(255,255,255,0.2); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; backdrop-filter: blur(5px); }
+        .video-close-btn:hover { background: var(--danger); }
+        #main-player { max-height: 85vh; max-width: 100%; border-radius: 12px; display: block; }
+
         .toast { position: fixed; bottom: 30px; right: 30px; background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; display: none; z-index: 3000; }
         .btn-render { width: 100%; padding: 14px; border-radius: 16px; border: none; background: linear-gradient(to right, var(--primary), #818cf8); color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; box-shadow: 0 10px 15px -3px var(--primary-glow); }
         .btn-render:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px var(--primary-glow); }
@@ -158,7 +166,13 @@
             @foreach($jobs as $job)
                 <div class="job-item" id="job-{{ $job->id }}">
                     <div class="job-header">
-                        <div><div class="job-title" style="font-weight:700;">{{ $job->project_name ?? 'Video Job #'.$job->id }}</div><div style="color:var(--text-muted);font-size:0.8rem;">{{ $job->created_at->diffForHumans() }}</div></div>
+                        <div>
+                            <div class="job-title" style="font-weight:700;">{{ $job->project_name ?? 'Video #'.$job->id.' - '.basename($job->audio_url) }}</div>
+                            <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">
+                                <i data-lucide="calendar" size="12" style="vertical-align: middle;"></i> 
+                                {{ $job->created_at->format('H:i:s d/m/Y') }}
+                            </div>
+                        </div>
                         <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
                     </div>
                     <div class="job-body" style="margin-top:12px;">
@@ -184,9 +198,14 @@
     </div>
 </div>
 
-<div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Realtime siêu nhạy, tự động cập nhật mọi tiến trình.</p></div></div>
-<div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
+<div id="api-modal" class="modal"><div class="modal-content" style="max-width: 600px; background: var(--bg); padding: 30px;"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre style="background: #000; padding: 15px; border-radius: 10px; overflow-x: auto;"><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content" style="max-width: 600px; background: var(--bg); padding: 30px;"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Video dọc (9:16) sẽ được hiển thị tối ưu trong cửa sổ xem.</p></div></div>
+<div id="video-modal" class="modal">
+    <div class="modal-content">
+        <div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div>
+        <video id="main-player" controls autoplay></video>
+    </div>
+</div>
 
 <script>
     lucide.createIcons();
@@ -204,7 +223,6 @@
     });
 
     const wsStatus = document.getElementById('ws-status');
-    
     setInterval(() => {
         if (echo.connector && echo.connector.pusher) {
             const state = echo.connector.pusher.connection.state;
@@ -221,15 +239,28 @@
         }
     }, 1000);
 
+    function formatDateTime(date) {
+        const d = new Date(date);
+        const pad = (n) => n.toString().padStart(2, '0');
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+    }
+
     function createJobElement(job) {
         const div = document.createElement('div');
         div.className = 'job-item';
         div.id = `job-${job.id}`;
+        // Lấy tên từ URL audio hoặc mặc định
+        const audioName = job.audio_url ? job.audio_url.split('/').pop() : 'video';
+        const title = job.project_name || `Video #${job.id} - ${audioName}`;
+        
         div.innerHTML = `
             <div class="job-header">
                 <div>
-                    <div class="job-title" style="font-weight:700;">${job.project_name || 'Video Job #' + job.id}</div>
-                    <div style="color:var(--text-muted);font-size:0.8rem;">Vừa xong</div>
+                    <div class="job-title" style="font-weight:700;">${title}</div>
+                    <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">
+                        <i data-lucide="calendar" size="12" style="vertical-align: middle;"></i> 
+                        ${formatDateTime(new Date())}
+                    </div>
                 </div>
                 <span class="status-badge status-${job.status}">${job.status}</span>
             </div>
@@ -262,7 +293,13 @@
             const result = await response.json();
             if (result.job_id && !document.getElementById(`job-${result.job_id}`)) {
                 const container = document.getElementById('job-list-container');
-                const initialJob = { id: result.job_id, status: 'pending', progress: 0, status_message: 'Đã nhận lệnh...' };
+                const initialJob = { 
+                    id: result.job_id, 
+                    status: 'pending', 
+                    progress: 0, 
+                    status_message: 'Đã nhận lệnh...',
+                    audio_url: formData.get('audio_url')
+                };
                 const el = createJobElement(initialJob);
                 container.prepend(el);
                 lucide.createIcons();
@@ -276,10 +313,8 @@
         }
     });
 
-    // CHẾ ĐỘ NGHE SIÊU NHẠY: Nghe cả job.updated và .job.updated
     const updateHandler = (e) => {
         const job = e.job; 
-        console.log('Realtime Event Received:', job);
         let el = document.getElementById(`job-${job.id}`);
         if (!el) {
             const container = document.getElementById('job-list-container');
@@ -300,9 +335,7 @@
         lucide.createIcons();
     };
 
-    echo.channel('jobs')
-        .listen('.job.updated', updateHandler)
-        .listen('job.updated', updateHandler); // Nghe cả 2 biến thể cho chắc chắn
+    echo.channel('jobs').listen('.job.updated', updateHandler).listen('job.updated', updateHandler);
 
     function playVideo(url) {
         const p = document.getElementById('main-player'); p.src = url; document.getElementById('video-modal').style.display = 'flex'; p.play();
