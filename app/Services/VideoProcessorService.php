@@ -134,7 +134,7 @@ class VideoProcessorService
     {
         $outputPath = "{$this->tempDir}/concat.mp4";
         if (count($paths) === 1) {
-            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -c:v libx264 -preset ultrafast -an " . escapeshellarg($outputPath));
+            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -c:v libx264 -preset ultrafast " . escapeshellarg($outputPath));
             return $outputPath;
         }
 
@@ -143,7 +143,7 @@ class VideoProcessorService
         foreach ($paths as $p) $content .= "file '" . str_replace("'", "'\\''", $p) . "'\n";
         file_put_contents($listPath, $content);
 
-        $cmd = "ffmpeg -y -f concat -safe 0 -i \"{$listPath}\" -c:v libx264 -preset ultrafast -an \"{$outputPath}\" 2>&1";
+        $cmd = "ffmpeg -y -f concat -safe 0 -i \"{$listPath}\" -c:v libx264 -preset ultrafast \"{$outputPath}\" 2>&1";
         shell_exec($cmd);
         return $outputPath;
     }

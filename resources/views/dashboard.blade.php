@@ -50,7 +50,7 @@
         input, textarea, select { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem; }
         textarea { resize: vertical; min-height: 80px; }
         
-        .slider-box { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid var(--border); }
+        .modal-content { background: var(--card-bg, #0f172a); width: 90%; max-width: 500px; padding: 20px; border-radius: 20px; position: relative; border: 1px solid var(--border-color, var(--border)); display: flex; flex-direction: column; }
         .slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
         input[type="range"] { -webkit-appearance: none; height: 3px; background: #334155; width: 100%; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; cursor: pointer; }
@@ -82,7 +82,6 @@
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-content { background: #0f172a; border: 1px solid var(--border); border-radius: 24px; padding: 30px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-close { position: absolute; top: 20px; right: 20px; color: var(--text-muted); cursor: pointer; }
         .api-block { background: #000; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 0.85rem; margin: 10px 0; border: 1px solid var(--border); overflow-x: auto; color: #34d399; }
 
@@ -295,9 +294,8 @@
         finally { btn.disabled = false; btn.innerHTML = originalText; lucide.createIcons(); }
     });
 
-    // Fallback Polling nếu Echo không hoạt động
     setInterval(() => {
-        fetch('/status')
+        fetch('/status?t=' + Date.now())
             .then(res => res.json())
             .then(data => {
                 data.data.forEach(job => {
