@@ -181,33 +181,39 @@ class VideoProcessorService
         $res = (($this->job->settings['format'] ?? '9:16') === '9:16') ? '1080:1920' : '1920:1080';
         
         $inputs = [
-            "-stream_loop -1 -i " . escapeshellarg($videoPath),
-            "-i " . escapeshellarg($audioPath)
+            "-stream_loop -1 -i " . escapeshellarg($videoPath), // Index 0
+            "-i " . escapeshellarg($audioPath) // Index 1
         ];
         
-        if ($logoPath) $inputs[] = "-ignore_loop 0 -loop 1 -i " . escapeshellarg($logoPath);
-        if ($bgMusicPath) $inputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
+        $logoIndex = null;
+        if ($logoPath) {
+            $inputs[] = "-ignore_loop 0 -loop 1 -i " . escapeshellarg($logoPath);
+            $logoIndex = count($inputs) - 1;
+        }
+
+        $bgMusicIndex = null;
+        if ($bgMusicPath) {
+            $inputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
+            $bgMusicIndex = count($inputs) - 1;
+        }
         
         $vFilters = ["[0:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res}[vbase]"];
         $lastV = "vbase";
 
-        /* 
         if ($subtitlePath) {
             $realPath = realpath($subtitlePath);
-            // Cách thoát chuỗi tối giản cho ass filter
             $safeAssPath = str_replace([':', '\\', "'"], ["\\:", '/', "'\\''"], $realPath);
             $vFilters[] = "[{$lastV}]ass='{$safeAssPath}'[vsub]";
             $lastV = "vsub";
         }
-        */
 
-        if ($logoPath) { 
+        if ($logoIndex !== null) { 
             $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
             $size = $this->job->settings['logo_size'] ?? 200;
             $speed = ($this->job->settings['logo_speed'] ?? 5);
             $durX = 15 / $speed; $durY = 11 / $speed;
             
-            $vFilters[] = "[2:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
+            $vFilters[] = "[{$logoIndex}:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
             $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))'[vlogo]"; 
             $lastV = "vlogo"; 
         }
@@ -226,8 +232,8 @@ class VideoProcessorService
             $audioInputs++;
         }
 
-        if ($bgMusicPath) { 
-            $aFilters[] = "[3:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]"; 
+        if ($bgMusicIndex !== null) { 
+            $aFilters[] = "[{$bgMusicIndex}:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]"; 
             $mixing[] = "[abg]";
             $audioInputs++;
         }
