@@ -237,9 +237,22 @@ class VideoProcessorService
             $lastA = "amain";
         }
         
+        // --- CHẨN ĐOÁN HỆ THỐNG TRƯỚC KHI CHẠY ---
+        $diagnostic = [];
+        if (!file_exists($videoPath)) $diagnostic[] = "Thiếu file Video: {$videoPath}";
+        if (!file_exists($audioPath)) $diagnostic[] = "Thiếu file Audio: {$audioPath}";
+        if ($bgMusicPath && !file_exists($bgMusicPath)) $diagnostic[] = "Thiếu file Nhạc nền: {$bgMusicPath}";
+        if ($logoPath && !file_exists($logoPath)) $diagnostic[] = "Thiếu file Logo: {$logoPath}";
+        if ($subtitlePath && !file_exists($subtitlePath)) $diagnostic[] = "Thiếu file Sub: {$subtitlePath}";
+        
+        if (!empty($diagnostic)) {
+            throw new \Exception("Lỗi tài nguyên hệ thống: " . implode(" | ", $diagnostic));
+        }
+
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
         
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
+        // Dùng -hide_banner để loại bỏ rác, hiện lỗi thật
+        $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
                " -map " . escapeshellarg("[{$lastV}]") . 
                " -map " . escapeshellarg("[{$lastA}]") . 
                " -t " . escapeshellarg($duration) . 
@@ -251,8 +264,8 @@ class VideoProcessorService
 
         if (!file_exists($outputPath) || $returnCode !== 0) {
             Log::error("Job {$this->job->id} FFmpeg Failed. Full Log: " . $fullLog);
-            // Lấy 3000 ký tự để không bỏ lỡ lỗi ở giữa
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, 0, 3000));
+            // Hiện toàn bộ log vì banner đã bị ẩn, lỗi sẽ hiện ngay đầu
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . ($fullLog ?: "No output from FFmpeg"));
         }
     }
 
