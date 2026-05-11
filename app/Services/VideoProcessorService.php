@@ -181,45 +181,45 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        // --- BƯỚC 1: TRỘN ÂM THANH RIÊNG BIỆT (DÙNG MP3 TOÀN DIỆN) ---
+        // --- BƯỚC 1: TRỘN ÂM THANH RIÊNG BIỆT ---
         $mixedAudioPath = "{$this->tempDir}/final_mixed.mp3";
         $aInputs = ["-i " . escapeshellarg($audioPath)];
-        $aFilters = ["[0:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
-        $aMixing = ["[amain]"];
         $aCount = 1;
 
-        if ($volVideo > 0) {
-            $aInputs[] = "-i " . escapeshellarg($videoPath);
-            $aFilters[] = "[{$aCount}:a]aresample=44100,pan=stereo,volume={$volVideo}[avideo]";
-            $aMixing[] = "[avideo]";
-            $aCount++;
-        }
-
-        if ($bgMusicPath) {
-            $aInputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
-            $aFilters[] = "[{$aCount}:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]";
-            $aMixing[] = "[abg]";
-            $aCount++;
-        }
-
-        $aFilterStr = implode(';', $aFilters);
-        if ($aCount > 1) {
-            $aFilterStr .= ";" . implode('', $aMixing) . "amix=inputs={$aCount}:duration=first:dropout_transition=0[outa]";
+        // Chỉ dùng filter_complex nếu có nhiều hơn 1 nguồn âm thanh
+        if ($volVideo > 0 || $bgMusicPath) {
+            $aFilters = ["[0:a]volume={$volMain}[amain]"];
+            $aMixing = ["[amain]"];
+            
+            if ($volVideo > 0) {
+                $aInputs[] = "-i " . escapeshellarg($videoPath);
+                $aFilters[] = "[{$aCount}:a]volume={$volVideo}[avideo]";
+                $aMixing[] = "[avideo]";
+                $aCount++;
+            }
+            if ($bgMusicPath) {
+                $aInputs[] = "-stream_loop -1 -i " . escapeshellarg($bgMusicPath);
+                $aFilters[] = "[{$aCount}:a]volume={$volMusic}[abg]";
+                $aMixing[] = "[abg]";
+                $aCount++;
+            }
+            
+            $aFilterStr = implode(';', $aFilters) . ";" . implode('', $aMixing) . "amix=inputs={$aCount}:duration=first:dropout_transition=0[outa]";
+            $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -acodec libmp3lame -b:a 192k -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
         } else {
-            $aFilterStr .= ";[amain]anull[outa]";
+            // Nếu chỉ có 1 nguồn, map trực tiếp cho chắc chắn có tiếng
+            $aCmd = "ffmpeg -y -i " . escapeshellarg($audioPath) . " -acodec libmp3lame -b:a 192k -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
         }
 
-        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -acodec libmp3lame -b:a 192k -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath) . " 2>&1";
         exec($aCmd, $aOutput, $aRet);
         if ($aRet !== 0) throw new \Exception("Lỗi trộn âm thanh: " . implode("\n", $aOutput));
-        if (!file_exists($mixedAudioPath)) throw new \Exception("Tệp âm thanh trộn không tồn tại.");
 
-        // --- BƯỚC 2: GHÉP VIDEO + LOGO + SUB + AUDIO ĐÃ TRỘN ---
+        // --- BƯỚC 2: GHÉP VIDEO ---
         $vInputs = [
-            "-stream_loop -1 -i " . escapeshellarg($videoPath), // Index 0
-            "-i " . escapeshellarg($mixedAudioPath) // Index 1
+            "-stream_loop -1 -i " . escapeshellarg($videoPath),
+            "-i " . escapeshellarg($mixedAudioPath)
         ];
-
+        
         $logoIdx = null;
         if ($logoPath) {
             $vInputs[] = "-loop 1 -i " . escapeshellarg($logoPath);
@@ -228,7 +228,6 @@ class VideoProcessorService
 
         $vFilters = ["[0:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res}[vbase]"];
         $lastV = "vbase";
-
         if ($subtitlePath) {
             $realPath = realpath($subtitlePath);
             $safeAssPath = str_replace([':', '\\', "'"], ["\\:", '/', "'\\''"], $realPath);
@@ -236,15 +235,14 @@ class VideoProcessorService
             $lastV = "vsub";
         }
 
-        if ($logoIdx !== null) { 
-            $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
+        if ($logoIdx !== null) {
             $size = $this->job->settings['logo_size'] ?? 200;
+            $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
             $speed = ($this->job->settings['logo_speed'] ?? 5);
             $durX = 15 / $speed; $durY = 11 / $speed;
-            
             $vFilters[] = "[{$logoIdx}:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
-            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))'[vlogo]"; 
-            $lastV = "vlogo"; 
+            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))'[vlogo]";
+            $lastV = "vlogo";
         }
 
         $vFilterStr = implode(';', $vFilters);
