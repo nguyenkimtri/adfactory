@@ -160,9 +160,9 @@
                             <div>
                                 <div class="job-title" style="font-weight:700;">vd-factory-{{ $job->id }}{{ $job->created_at->format('dmY') }}</div>
                                 <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">
-                                    <i data-lucide="calendar" size="12"></i> Tạo: {{ $job->created_at->format('H:i d/m') }}
+                                    <i data-lucide="calendar" size="12"></i> Tạo: {{ $job->created_at->format('H:i:s d/m') }}
                                     @if($job->status === 'completed')
-                                        | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: {{ $job->updated_at->format('H:i d/m') }}
+                                        | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: {{ $job->updated_at->format('H:i:s d/m') }}
                                     @endif
                                 </div>
                             </div>

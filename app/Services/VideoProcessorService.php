@@ -30,7 +30,7 @@ class VideoProcessorService
             $bgMusicPath = null;
             if (!empty($this->job->bg_music_url)) {
                 $bgPaths = $this->downloadResources($this->job->bg_music_url, 'bg');
-                $bgMusicPath = $this->concatAudio($bgPaths, 'bg_final.m4a');
+                $bgMusicPath = $this->concatAudio($bgPaths, 'bg_final.mp3');
             }
 
             $logoPath = null;
@@ -167,7 +167,7 @@ class VideoProcessorService
 
         // --- BƯỚC 1: TRỘN ÂM THANH RIÊNG BIỆT ---
         $mixedAudioPath = "{$this->tempDir}/final_mixed.m4a";
-        $aInputs = ["-i " . escapeshellarg($audioPath)];
+        $aInputs = ["-i " . escapeshellarg($audioPath)]; // audioPath luôn là .mp3 từ concatAudio
         $aFilters = ["[0:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
         $aMixing = ["[amain]"];
         $aCount = 1;
