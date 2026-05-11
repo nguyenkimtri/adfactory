@@ -114,10 +114,13 @@ class VideoProcessorService
         $normDir = "{$this->tempDir}/norm"; 
         if (!file_exists($normDir)) mkdir($normDir, 0777, true);
         
+        $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
+        $audioFlag = ($volVideo > 0) ? "" : "-an"; // Nếu có âm lượng video gốc thì không dùng -an
+
         $normPaths = [];
         foreach ($videoPaths as $i => $path) {
             $out = "{$normDir}/{$i}.mp4";
-            shell_exec("ffmpeg -y -i \"{$path}\" -vf \"scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS\" -r 30 -c:v libx264 -preset superfast -an \"{$out}\" 2>&1");
+            shell_exec("ffmpeg -y -i \"{$path}\" -vf \"scale={$res}:force_original_aspect_ratio=increase,crop={$res},setpts=PTS-STARTPTS\" -r 30 -c:v libx264 -preset superfast {$audioFlag} \"{$out}\" 2>&1");
             if (file_exists($out)) $normPaths[] = $out;
         }
 
@@ -129,7 +132,8 @@ class VideoProcessorService
         file_put_contents($listFile, $content);
         
         $concatPath = "{$this->tempDir}/concat.mp4";
-        shell_exec("ffmpeg -y -f concat -safe 0 -i \"{$listFile}\" -c copy \"{$concatPath}\" 2>&1");
+        $concatAudioFlag = ($volVideo > 0) ? "" : "-an";
+        shell_exec("ffmpeg -y -f concat -safe 0 -i \"{$listFile}\" -c:v copy {$concatAudioFlag} \"{$concatPath}\" 2>&1");
         return $concatPath;
     }
 
@@ -152,11 +156,8 @@ class VideoProcessorService
         $lastV = "vbase";
 
         if ($subtitlePath) {
-            // Sửa lỗi thoát chuỗi đường dẫn phụ đề cho Linux
             $safeAssPath = str_replace([':', '\\'], ['\\:', '/'], realpath($subtitlePath));
-            if (PHP_OS_FAMILY !== 'Windows') {
-                $safeAssPath = str_replace(':', '\:', realpath($subtitlePath));
-            }
+            if (PHP_OS_FAMILY !== 'Windows') $safeAssPath = str_replace(':', '\:', realpath($subtitlePath));
             $vFilters[] = "[{$lastV}]ass='{$safeAssPath}'[vsub]";
             $lastV = "vsub";
         }
@@ -164,29 +165,42 @@ class VideoProcessorService
         if ($logoPath) { 
             $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
             $size = $this->job->settings['logo_size'] ?? 200;
-            $speed = $this->job->settings['logo_speed'] ?? 5;
+            $speed = ($this->job->settings['logo_speed'] ?? 5);
+            // Chu kỳ di chuyển dựa trên tốc độ (Càng nhanh chu kỳ càng ngắn)
+            $durX = 15 / $speed; $durY = 11 / $speed;
             
             $vFilters[] = "[2:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
-            // Bouncing Logic chuyên nghiệp
-            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,10),5), (W-w)*mod(t,5)/5, (W-w)*(1-mod(t,5)/5))':y='if(lte(mod(t,6),3), (H-h)*mod(t,3)/3, (H-h)*(1-mod(t,3)/3))':shortest=1[vlogo]"; 
+            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))':shortest=1[vlogo]"; 
             $lastV = "vlogo"; 
         }
 
         $volMain = ($this->job->settings['volume_audio'] ?? 100) / 100;
-        $aFilters = ["[1:a]volume={$volMain}[amain]"]; 
-        $lastA = "amain";
+        $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
+        $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
+
+        $audioInputs = 1;
+        $aFilters = ["[1:a]volume={$volMain}[amain]"];
+        $mixing = ["[amain]"];
+
+        if ($volVideo > 0) {
+            $aFilters[] = "[0:a]volume={$volVideo}[avideo]";
+            $mixing[] = "[avideo]";
+            $audioInputs++;
+        }
 
         if ($bgMusicPath) { 
-            $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
             $aFilters[] = "[3:a]volume={$volMusic}[abg]"; 
-            $aFilters[] = "[{$lastA}][abg]amix=inputs=2:duration=first[amixout]"; 
-            $lastA = "amixout"; 
+            $mixing[] = "[abg]";
+            $audioInputs++;
         }
+        
+        $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first[amixout]";
+        $lastA = "amixout";
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
         $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac \"{$outputPath}\" 2>&1";
         
-        $output = shell_exec($cmd);
+        shell_exec($cmd);
         if (!file_exists($outputPath)) {
             throw new \Exception("FFmpeg failed to create output file. Log: " . substr($output, -500));
         }

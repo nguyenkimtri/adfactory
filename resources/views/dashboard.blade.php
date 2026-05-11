@@ -71,6 +71,7 @@
 
         .btn-action { padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; display: flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none; }
         .btn-play { color: var(--success); }
+        .btn-copy { color: #a855f7; }
         .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
@@ -153,10 +154,11 @@
                         <div class="job-body" style="margin-top:12px;">
                             @if($job->status === 'processing' || $job->status === 'pending')
                                 <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
-                                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">{{ $job->status_message }}</div>
+                                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">{{ $job->status_message ?: 'Đang xếp hàng...' }}</div>
                             @elseif($job->status === 'completed')
                                 <div style="display:flex;gap:8px;">
                                     <button onclick="playVideo('{{ $job->output_path }}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
+                                    <button onclick="copyToClipboard('{{ $job->output_path }}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button>
                                     <a href="{{ $job->output_path }}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a>
                                     <button onclick="deleteJob('{{ $job->id }}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                                 </div>
@@ -210,12 +212,16 @@
         }
     }, 1000);
 
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => { alert('Đã copy link video vào bộ nhớ tạm!'); });
+    }
+
     function createJobElement(job) {
         const div = document.createElement('div');
         div.className = 'job-item'; div.id = `job-${job.id}`;
         const now = new Date();
         const ddmmyyyy = `${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}`;
-        div.innerHTML = `<div class="job-header"><div><div class="job-title" style="font-weight:700;">vd-factory-${job.id}+${ddmmyyyy}</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div></div><span class="status-badge status-${job.status}">${job.status}</span></div><div class="job-body" style="margin-top:12px;"><div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Đang chuẩn bị...</div></div>`;
+        div.innerHTML = `<div class="job-header"><div><div class="job-title" style="font-weight:700;">vd-factory-${job.id}+${ddmmyyyy}</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div></div><span class="status-badge status-${job.status}">${job.status}</span></div><div class="job-body" style="margin-top:12px;"><div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Đang xếp hàng...</div></div>`;
         return div;
     }
 
@@ -247,9 +253,9 @@
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
         const body = el.querySelector('.job-body');
         if (job.status === 'processing' || job.status === 'pending') {
-            body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || ''}</div>`;
+            body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang xử lý...'}</div>`;
         } else if (job.status === 'completed') {
-            body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
+            body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
         } else if (job.status === 'failed') {
             body.innerHTML = `<div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: ${job.error_message}</div><button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>`;
         }
