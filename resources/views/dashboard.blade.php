@@ -86,6 +86,7 @@
         .toast { position: fixed; bottom: 30px; right: 30px; background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; display: none; z-index: 3000; }
         .btn-render { width: 100%; padding: 14px; border-radius: 16px; border: none; background: linear-gradient(to right, var(--primary), #818cf8); color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1rem; box-shadow: 0 10px 15px -3px var(--primary-glow); }
         .btn-render:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px var(--primary-glow); }
+        .btn-render:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -104,7 +105,8 @@
 
 <div class="main-container">
     <div class="sidebar">
-        <form action="{{ route('generate') }}" method="POST" id="main-form">
+        <!-- Chuyển sang AJAX bằng cách bỏ action và thêm ID -->
+        <form id="render-form">
             @csrf
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
@@ -140,7 +142,7 @@
                     <div class="form-group"><label>Nhạc nền</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-music">20%</span></div><input type="range" name="settings[volume_music]" min="0" max="100" value="20" oninput="document.getElementById('v-vol-music').innerText = this.value + '%'"></div></div>
                     <div class="form-group"><label>Video gốc</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-video">0%</span></div><input type="range" name="settings[volume_video]" min="0" max="100" value="0" oninput="document.getElementById('v-vol-video').innerText = this.value + '%'"></div></div>
                 </div>
-                <button type="submit" class="btn-render"><i data-lucide="zap"></i> BẮT ĐẦU RENDER</button>
+                <button type="submit" id="btn-submit" class="btn-render"><i data-lucide="zap"></i> BẮT ĐẦU RENDER</button>
             </div>
         </form>
     </div>
@@ -178,7 +180,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Hệ thống tự động chuyển đổi giữa WebSocket và Long Polling.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Sử dụng AJAX để gửi yêu cầu mà không làm tải lại trang.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -214,6 +216,45 @@
             }
         }
     }, 1000);
+
+    // AJAX FORM SUBMISSION
+    document.getElementById('render-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit');
+        const originalText = btn.innerHTML;
+        
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="spin"></i> ĐANG GỬI...';
+            lucide.createIcons();
+
+            const formData = new FormData(this);
+            const response = await fetch('{{ route('generate') }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.message || 'Lỗi hệ thống');
+            }
+
+            const result = await response.json();
+            // Thành công thì reset form (hoặc giữ lại tùy ý)
+            // this.reset();
+            alert('Đã thêm video vào hàng đợi thành công!');
+
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            lucide.createIcons();
+        }
+    });
 
     echo.channel('jobs').listen('.job.updated', (e) => {
         const job = e.job; const el = document.getElementById(`job-${job.id}`);
