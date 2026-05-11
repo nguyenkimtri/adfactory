@@ -184,7 +184,7 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Realtime tự động chèn video mới vào danh sách mà không cần tải lại trang.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Sử dụng AJAX tuyệt đối để tương thích HTTPS hoàn toàn.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
@@ -221,7 +221,7 @@
         }
     }, 1000);
 
-    // AJAX FORM SUBMISSION
+    // FIX HTTPS: Sử dụng relative path '/generate' thay vì dùng route() helper sinh ra http
     document.getElementById('render-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         const btn = document.getElementById('btn-submit');
@@ -233,7 +233,8 @@
             lucide.createIcons();
 
             const formData = new FormData(this);
-            const response = await fetch('{{ route('generate') }}', {
+            // SỬA Ở ĐÂY: Dùng đường dẫn tương đối để ép dùng chung HTTPS
+            const response = await fetch('/generate', {
                 method: 'POST',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -244,8 +245,6 @@
                 throw new Error(err.message || 'Lỗi hệ thống');
             }
 
-            // Sau khi gửi thành công, KHÔNG LÀM GÌ CẢ. 
-            // Realtime sẽ tự động chèn video mới vào danh sách qua Echo bên dưới.
             console.log('Video submitted successfully');
 
         } catch (error) {
@@ -257,7 +256,6 @@
         }
     });
 
-    // CHỨC NĂNG TỰ ĐỘNG CHÈN VIDEO MỚI VÀO DANH SÁCH
     function createJobElement(job) {
         const div = document.createElement('div');
         div.className = 'job-item';
@@ -282,15 +280,13 @@
         const job = e.job; 
         let el = document.getElementById(`job-${job.id}`);
         
-        // NẾU LÀ VIDEO MỚI (Chưa có trong danh sách)
         if (!el) {
             const container = document.getElementById('job-list-container');
             el = createJobElement(job);
-            container.insertBefore(el, container.firstChild); // Chèn vào đầu danh sách
+            container.insertBefore(el, container.firstChild);
             lucide.createIcons();
         }
 
-        // Cập nhật trạng thái và % cho dù là mới hay cũ
         el.querySelector('.status-badge').className = `status-badge status-${job.status}`;
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
         
