@@ -76,14 +76,14 @@
         .btn-action { padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; display: flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none; }
         .btn-play { color: var(--success); }
         .btn-copy { color: #a855f7; }
+        .btn-cancel { color: var(--danger); border-color: rgba(239, 68, 68, 0.2); }
+        
         .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
-        /* MODAL STYLES */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
         .modal-content { background: #0f172a; border: 1px solid var(--border); border-radius: 24px; padding: 30px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-close { position: absolute; top: 20px; right: 20px; color: var(--text-muted); cursor: pointer; }
-        .modal h2 { margin-top: 0; color: var(--primary); }
         .api-block { background: #000; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 0.85rem; margin: 10px 0; border: 1px solid var(--border); overflow-x: auto; color: #34d399; }
 
         .pagination-container { margin-top: auto; padding: 20px 0; display: flex; justify-content: center; gap: 10px; }
@@ -165,7 +165,10 @@
                         <div class="job-body" style="margin-top:12px;">
                             @if($job->status === 'processing' || $job->status === 'pending')
                                 <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
-                                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">{{ $job->status_message ?: 'Đang xếp hàng...' }}</div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                    <div style="font-size:0.75rem;color:var(--primary);">{{ $job->status_message ?: 'Đang xếp hàng...' }}</div>
+                                    <button onclick="deleteJob('{{ $job->id }}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button>
+                                </div>
                             @elseif($job->status === 'completed')
                                 <div style="display:flex;gap:8px;">
                                     <button onclick="playVideo('{{ $job->output_path }}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
@@ -203,59 +206,29 @@
     </div>
 </div>
 
-<!-- GUIDE MODAL -->
 <div id="guide-modal" class="modal">
     <div class="modal-content">
         <div class="modal-close" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div>
         <h2>📖 Hướng dẫn sử dụng</h2>
         <div style="line-height: 1.6; color: var(--secondary);">
             <p><strong>Bước 1:</strong> Chuẩn bị Audio (Giọng đọc) và dán link vào ô <em>Audio Chính</em>.</p>
-            <p><strong>Bước 2:</strong> Chọn danh sách Video minh họa (mỗi link 1 dòng). Hệ thống sẽ tự động loop hoặc cắt ghép video để khớp với độ dài Audio.</p>
-            <p><strong>Bước 3:</strong> Cấu hình Logo (nếu có) và chỉnh các thông số Âm lượng, Tốc độ Logo di chuyển.</p>
-            <p><strong>Bước 4:</strong> Bấm <em>BẮT ĐẦU RENDER</em> và chờ hệ thống xử lý thời gian thực.</p>
-            <p><i data-lucide="info" size="14"></i> Mẹo: Bạn có thể dán link <strong>YouTube</strong> hoặc <strong>TikTok</strong> trực tiếp, hệ thống sẽ tự tải về!</p>
+            <p><strong>Bước 2:</strong> Chọn danh sách Video minh họa (mỗi link 1 dòng).</p>
+            <p><strong>Bước 3:</strong> Cấu hình Logo, Âm lượng và Tốc độ di chuyển.</p>
+            <p><strong>Bước 4:</strong> Bấm <em>BẮT ĐẦU RENDER</em>.</p>
         </div>
     </div>
 </div>
 
-<!-- API MODAL -->
 <div id="api-modal" class="modal">
     <div class="modal-content">
         <div class="modal-close" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div>
-        <h2>🔌 Tài liệu API (Dành cho n8n / Tự động hóa)</h2>
-        <p>Sử dụng <strong>HTTP Request</strong> node trong n8n:</p>
-        <div class="api-block">METHOD: POST<br>URL: https://vdfs.phung.vn/generate</div>
-        
-        <p><strong>Cấu trúc JSON (Body):</strong></p>
-        <div class="api-block">
-{
-  "audio_url": ["link-audio-1.mp3"],
-  "video_sources": ["link-youtube-1", "link-tiktok-2"],
-  "bg_music_url": ["link-bg-1.mp3"],
-  "logo_url": "link-logo.png",
-  "settings": {
-    "format": "9:16",
-    "auto_subtitle": true,
-    "logo_opacity": 80,
-    "logo_size": 200,
-    "logo_speed": 5,
-    "volume_audio": 100,
-    "volume_music": 20,
-    "volume_video": 0
-  },
-  "webhook_url": "https://your-n8n-webhook.com"
-}
-        </div>
-        <p><small>* Lưu ý: <code>audio_url</code> và <code>video_sources</code> phải là dạng Mảng (Array).</small></p>
+        <h2>🔌 Tài liệu API</h2>
+        <div class="api-block">POST https://vdfs.phung.vn/generate</div>
+        <p>Gửi mảng (Array) cho các trường audio_url và video_sources.</p>
     </div>
 </div>
 
-<div id="video-modal" class="modal">
-    <div class="modal-content">
-        <div class="video-close-btn" onclick="closeModal('video-modal')"><i data-lucide="x"></i></div>
-        <video id="main-player" controls autoplay style="max-height: 80vh; max-width: 100%; border-radius:12px;"></video>
-    </div>
-</div>
+<div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('video-modal')"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="max-height: 80vh; max-width: 100%; border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
@@ -284,7 +257,7 @@
         div.className = 'job-item'; div.id = `job-${job.id}`;
         const now = new Date();
         const ddmmyyyy = `${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}`;
-        div.innerHTML = `<div class="job-header"><div><div class="job-title" style="font-weight:700;">vd-factory-${job.id}+${ddmmyyyy}</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div></div><span class="status-badge status-${job.status}">${job.status}</span></div><div class="job-body" style="margin-top:12px;"><div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Đang xếp hàng...</div></div>`;
+        div.innerHTML = `<div class="job-header"><div><div class="job-title" style="font-weight:700;">vd-factory-${job.id}+${ddmmyyyy}</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div></div><span class="status-badge status-${job.status}">${job.status}</span></div><div class="job-body" style="margin-top:12px;"><div class="progress-bar"><div class="progress-fill" style="width: 0%"></div><div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;"><div style="font-size:0.75rem;color:var(--primary);">Đang xếp hàng...</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button></div></div>`;
         return div;
     }
 
@@ -297,6 +270,12 @@
             btn.innerHTML = '<i data-lucide="loader" class="spin"></i> ĐANG GỬI...';
             const formData = new FormData(this);
             const response = await fetch('/generate', { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) {
+                const errData = await response.json();
+                console.error('Validation Error:', errData);
+                alert('Lỗi nhập liệu (422): ' + JSON.stringify(errData.errors));
+                return;
+            }
             const result = await response.json();
             if (result.job_id && !document.getElementById(`job-${result.job_id}`)) {
                 const container = document.getElementById('job-list-container');
@@ -316,7 +295,7 @@
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
         const body = el.querySelector('.job-body');
         if (job.status === 'processing' || job.status === 'pending') {
-            body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || 'Đang xử lý...'}</div>`;
+            body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;"><div style="font-size:0.75rem;color:var(--primary);">${job.status_message || 'Đang xử lý...'}</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button></div>`;
         } else if (job.status === 'completed') {
             body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
         } else if (job.status === 'failed') {
@@ -326,7 +305,7 @@
     });
 
     function playVideo(url) { document.getElementById('main-player').src = url; openModal('video-modal'); }
-    function deleteJob(id) { if(confirm('Xóa video này?')) fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }).then(() => location.reload()); }
+    function deleteJob(id) { if(confirm('Hủy/Xóa video này?')) fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }).then(() => location.reload()); }
 </script>
 </body>
 </html>

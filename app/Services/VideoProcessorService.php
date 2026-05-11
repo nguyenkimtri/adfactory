@@ -200,9 +200,9 @@ class VideoProcessorService
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
         $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac \"{$outputPath}\" 2>&1";
         
-        shell_exec($cmd);
+        $output = shell_exec($cmd);
         if (!file_exists($outputPath)) {
-            throw new \Exception("FFmpeg failed to create output file. Log: " . substr($output, -500));
+            throw new \Exception("FFmpeg failed to create output file. Log: " . substr((string)$output, -500));
         }
     }
 
