@@ -188,8 +188,13 @@ class VideoProcessorService
         $lastV = "vbase";
 
         if ($subtitlePath) {
-            $safeAssPath = str_replace([':', '\\'], ['\\:', '/'], realpath($subtitlePath));
-            if (PHP_OS_FAMILY !== 'Windows') $safeAssPath = str_replace(':', '\:', realpath($subtitlePath));
+            $realPath = realpath($subtitlePath);
+            if (PHP_OS_FAMILY === 'Windows') {
+                $safeAssPath = str_replace([':', '\\'], ['\\:', '/'], $realPath);
+            } else {
+                // Trên Linux, bộ lọc ass cần thoát dấu hai chấm và phẩy
+                $safeAssPath = str_replace([':', ','], ['\\:', '\\,'], $realPath);
+            }
             $vFilters[] = "[{$lastV}]ass='{$safeAssPath}'[vsub]";
             $lastV = "vsub";
         }
@@ -241,7 +246,9 @@ class VideoProcessorService
 
         if (!file_exists($outputPath) || $returnCode !== 0) {
             Log::error("Job {$this->job->id} FFmpeg Failed. Log: " . $fullLog);
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, -1500));
+            $logStart = substr($fullLog, 0, 700);
+            $logEnd = substr($fullLog, -700);
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: {$logStart} ... [CUT] ... {$logEnd}");
         }
     }
 
