@@ -6,6 +6,7 @@
     <title>Video Factory Studio - Premium Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- WebSocket Libraries -->
     <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
     <style>
@@ -57,7 +58,6 @@
 
         .btn-render { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; border: none; padding: 16px; border-radius: 16px; font-weight: 700; font-size: 1rem; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 10px 20px -5px rgba(6, 182, 212, 0.4); }
 
-        /* Tinh chỉnh Nút Toggle chuyên nghiệp */
         .switch-container { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 15px; cursor: pointer; }
         .switch-container:hover { background: rgba(255,255,255,0.08); }
         .switch-text { font-size: 0.9rem; font-weight: 600; color: #fff; }
@@ -108,18 +108,9 @@
             @csrf
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
-                <div class="form-group">
-                    <label>Tên dự án</label>
-                    <input type="text" name="project_name" placeholder="Ví dụ: Video Review Film 01">
-                </div>
-                <div class="form-group">
-                    <label>Audio Chính</label>
-                    <input type="text" name="audio_url" placeholder="Dán link audio MP3..." required>
-                </div>
-                <div class="form-group">
-                    <label>Video Nguồn (Mỗi link 1 dòng)</label>
-                    <textarea name="raw_video_sources" rows="3" placeholder="Link YouTube, TikTok, MP4..." required></textarea>
-                </div>
+                <div class="form-group"><label>Tên dự án</label><input type="text" name="project_name" placeholder="Ví dụ: Video Review Film 01"></div>
+                <div class="form-group"><label>Audio Chính</label><input type="text" name="audio_url" placeholder="Dán link audio MP3..." required></div>
+                <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="raw_video_sources" rows="3" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
                 
                 <label class="switch-container">
                     <span class="switch-text">Tự động tạo phụ đề AI chuyên nghiệp</span>
@@ -237,29 +228,35 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket tự động kết nối qua cổng 8080/443.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket tự động kết nối qua SSL của Cloudflare.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
+    // SỬA LỖI: Dùng broadcaster 'pusher' để tương thích tốt nhất với Reverb CDN
     const echo = new Echo({
-        broadcaster: 'reverb',
+        broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
         wsHost: window.location.hostname,
-        wsPort: 8080,
+        wsPort: 443,
         wssPort: 443,
-        forceTLS: window.location.protocol === 'https:',
+        forceTLS: true,
         enabledTransports: ['ws', 'wss'],
+        cluster: 'mt1', // Reverb không dùng cluster nhưng Pusher-js yêu cầu
     });
 
     const wsStatus = document.getElementById('ws-status');
-    echo.connector.pusher.connection.bind('connected', () => {
-        wsStatus.className = 'ws-connected'; wsStatus.innerText = '● WebSocket: Connected';
-    });
-    echo.connector.pusher.connection.bind('disconnected', () => {
-        wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● WebSocket: Disconnected';
-    });
+    
+    // Kiểm tra kết nối an toàn
+    if (echo.connector && echo.connector.pusher) {
+        echo.connector.pusher.connection.bind('connected', () => {
+            wsStatus.className = 'ws-connected'; wsStatus.innerText = '● WebSocket: Connected';
+        });
+        echo.connector.pusher.connection.bind('disconnected', () => {
+            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● WebSocket: Disconnected';
+        });
+    }
 
     echo.channel('jobs').listen('.job.updated', (e) => {
         const job = e.job; const el = document.getElementById(`job-${job.id}`);
