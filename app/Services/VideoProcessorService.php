@@ -50,8 +50,8 @@ class VideoProcessorService
             $audioDuration = $this->getDuration($paths['audio']);
             $videoPath = $this->prepareVideo($paths['videos'], $audioDuration);
             
-            // ĐẶT TÊN THEO CÚ PHÁP: vd-factory-id+ngaythangnam
-            $fileName = "vd-factory-{$this->job->id}+" . now()->format('dmY');
+            // ĐẶT TÊN THEO CÚ PHÁP: vd-factory-idngaythangnam
+            $fileName = "vd-factory-{$this->job->id}" . now()->format('dmY');
             $outputPath = storage_path("app/public/exports/{$fileName}.mp4");
             if (!file_exists(dirname($outputPath))) mkdir(dirname($outputPath), 0777, true);
 
