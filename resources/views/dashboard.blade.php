@@ -6,7 +6,6 @@
     <title>Video Factory Studio - Premium Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- WebSocket Libraries -->
     <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
     <style>
@@ -58,6 +57,17 @@
 
         .btn-render { background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; border: none; padding: 16px; border-radius: 16px; font-weight: 700; font-size: 1rem; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 10px 20px -5px rgba(6, 182, 212, 0.4); }
 
+        /* Tinh chỉnh Nút Toggle chuyên nghiệp */
+        .switch-container { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 15px; cursor: pointer; }
+        .switch-container:hover { background: rgba(255,255,255,0.08); }
+        .switch-text { font-size: 0.9rem; font-weight: 600; color: #fff; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-toggle { position: absolute; cursor: pointer; inset: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider-toggle:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider-toggle { background-color: var(--primary); }
+        input:checked + .slider-toggle:before { transform: translateX(20px); }
+
         .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; }
         .job-header { display: flex; justify-content: space-between; align-items: center; }
         .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
@@ -75,10 +85,7 @@
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
         .modal-content { background: var(--bg); border: 1px solid var(--border); border-radius: 24px; padding: 30px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; }
         .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(0,0,0,0.5); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
-        
         .toast { position: fixed; bottom: 30px; right: 30px; background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; display: none; z-index: 3000; }
-        .checkbox-group { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; }
-        .checkbox-group label { margin: 0; cursor: pointer; text-transform: none; color: #fff; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -102,11 +109,11 @@
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
                 <div class="form-group">
-                    <label>Tên dự án (Ghi chú)</label>
+                    <label>Tên dự án</label>
                     <input type="text" name="project_name" placeholder="Ví dụ: Video Review Film 01">
                 </div>
                 <div class="form-group">
-                    <label>Audio Chính (Giọng đọc)</label>
+                    <label>Audio Chính</label>
                     <input type="text" name="audio_url" placeholder="Dán link audio MP3..." required>
                 </div>
                 <div class="form-group">
@@ -114,32 +121,28 @@
                     <textarea name="raw_video_sources" rows="3" placeholder="Link YouTube, TikTok, MP4..." required></textarea>
                 </div>
                 
-                <div class="checkbox-group">
-                    <input type="checkbox" name="settings[auto_subtitle]" id="auto_subtitle" checked>
-                    <label for="auto_subtitle">Tự động tạo phụ đề AI chuyên nghiệp</label>
-                </div>
+                <label class="switch-container">
+                    <span class="switch-text">Tự động tạo phụ đề AI chuyên nghiệp</span>
+                    <span class="switch">
+                        <input type="checkbox" name="settings[auto_subtitle]" checked>
+                        <span class="slider-toggle"></span>
+                    </span>
+                </label>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="form-group">
-                        <label>Nhạc nền</label>
-                        <input type="text" name="bg_music_url" placeholder="Link nhạc nền...">
-                    </div>
-                    <div class="form-group">
-                        <label>Logo</label>
-                        <input type="text" name="logo_url" placeholder="Link ảnh logo PNG...">
-                    </div>
+                    <div class="form-group"><label>Nhạc nền</label><input type="text" name="bg_music_url" placeholder="Link nhạc nền..."></div>
+                    <div class="form-group"><label>Logo</label><input type="text" name="logo_url" placeholder="Link ảnh logo PNG..."></div>
                 </div>
             </div>
 
             <div class="card">
                 <h3><i data-lucide="settings"></i> Tinh chỉnh</h3>
-                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
                         <label>Định dạng</label>
                         <select name="settings[format]">
-                            <option value="9:16">Dọc (9:16) - TikTok/Reels</option>
-                            <option value="16:9">Ngang (16:9) - YouTube</option>
+                            <option value="9:16">Dọc (9:16)</option>
+                            <option value="16:9">Ngang (16:9)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -205,7 +208,7 @@
                 <div class="job-item" id="job-{{ $job->id }}">
                     <div class="job-header">
                         <div>
-                            <div class="job-title" style="font-weight:700;font-size:1.1rem;">{{ $job->project_name ?? 'Video Job #'.$job->id }}</div>
+                            <div class="job-title" style="font-weight:700;">{{ $job->project_name ?? 'Video Job #'.$job->id }}</div>
                             <div style="color:var(--text-muted);font-size:0.8rem;">{{ $job->created_at->diffForHumans() }}</div>
                         </div>
                         <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
@@ -233,23 +236,18 @@
     </div>
 </div>
 
-<!-- API MODAL -->
-<div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3><i data-lucide="code"></i> API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre><p>Cấu trúc JSON như file mẫu n8n.</p></div></div>
-
-<!-- GUIDE MODAL -->
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3><i data-lucide="help-circle"></i> Hướng dẫn</h3><p>Hệ thống hỗ trợ cập nhật trạng thái Realtime qua WebSocket.</p></div></div>
-
+<div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket tự động kết nối qua cổng 8080/443.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // Echo Realtime Configuration
     const echo = new Echo({
         broadcaster: 'reverb',
         key: '{{ config('reverb.apps.apps.0.key') }}',
         wsHost: window.location.hostname,
-        wsPort: window.location.protocol === 'https:' ? 443 : 8080,
+        wsPort: 8080,
         wssPort: 443,
         forceTLS: window.location.protocol === 'https:',
         enabledTransports: ['ws', 'wss'],
@@ -264,29 +262,15 @@
     });
 
     echo.channel('jobs').listen('.job.updated', (e) => {
-        const job = e.job;
-        const el = document.getElementById(`job-${job.id}`);
+        const job = e.job; const el = document.getElementById(`job-${job.id}`);
         if (!el) { location.reload(); return; }
-
         el.querySelector('.status-badge').className = `status-badge status-${job.status}`;
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
-
         const body = el.querySelector('.job-body');
         if (job.status === 'processing' || job.status === 'pending') {
-            body.innerHTML = `
-                <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div>
-                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || ''}</div>
-                <button onclick="deleteJob('${job.id}', 'Hủy video này?')" class="btn-action" style="margin-top:10px;color:var(--danger)"><i data-lucide="x-circle" size="14"></i> Hủy</button>
-            `;
+            body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">${job.status_message || ''}</div><button onclick="deleteJob('${job.id}', 'Hủy video này?')" class="btn-action" style="margin-top:10px;color:var(--danger)"><i data-lucide="x-circle" size="14"></i> Hủy</button>`;
         } else if (job.status === 'completed') {
-            body.innerHTML = `
-                <div style="display:flex;gap:8px;">
-                    <button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
-                    <button onclick="shareLink('${job.output_path}')" class="btn-action btn-share"><i data-lucide="share-2" size="14"></i> Copy Link</button>
-                    <a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a>
-                    <button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
-                </div>
-            `;
+            body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="shareLink('${job.output_path}')" class="btn-action btn-share"><i data-lucide="share-2" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
         } else if (job.status === 'failed') {
             body.innerHTML = `<div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;margin-bottom:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: ${job.error_message}</div><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>`;
         }
