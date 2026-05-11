@@ -23,8 +23,9 @@ class VideoProcessorService
     {
         try {
             $this->updateProgress(10, 'Đang tải tài nguyên...');
-            $videoPaths = $this->downloadResources($this->job->video_sources, 'v');
-            $audioPaths = $this->downloadResources($this->job->audio_url, 'a');
+            // Đảm bảo lấy đúng tên cột từ Database
+            $videoPaths = $this->downloadResources($this->job->video_sources ?? [], 'v');
+            $audioPaths = $this->downloadResources($this->job->audio_url ?? [], 'a');
             
             $bgMusicPath = null;
             if (!empty($this->job->bg_music_url)) {
@@ -44,7 +45,7 @@ class VideoProcessorService
 
             $subtitlePath = null;
             if ($this->job->settings['subtitles'] ?? true) {
-                $this->updateProgress(30, 'AI đang tạo phụ đề...');
+                $this->updateProgress(40, 'AI đang tạo phụ đề...');
                 $subtitlePath = $this->transcribeAudio($audioPath);
             }
 
@@ -84,6 +85,7 @@ class VideoProcessorService
     protected function downloadResources($urls, $prefix)
     {
         $paths = [];
+        if (!is_array($urls)) return $paths;
         foreach ($urls as $i => $url) {
             $paths[] = $this->downloadFile($url, "{$prefix}_{$i}");
         }
@@ -111,7 +113,8 @@ class VideoProcessorService
     {
         $outputPath = "{$this->tempDir}/{$outName}";
         if (count($paths) === 1) {
-            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -acodec libmp3lame " . escapeshellarg($outputPath));
+            // Ép về Stereo ngay từ file gốc
+            shell_exec("ffmpeg -y -i " . escapeshellarg($paths[0]) . " -ac 2 -ar 44100 -acodec libmp3lame " . escapeshellarg($outputPath));
             return $outputPath;
         }
 
@@ -125,7 +128,7 @@ class VideoProcessorService
         for($i=0;$i<$count;$i++) $filter .= "[a{$i}]";
         $filter .= "concat=n={$count}:v=0:a=1[outa]";
 
-        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outa]\" " . escapeshellarg($outputPath) . " 2>&1";
+        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outa]\" -ac 2 -ar 44100 " . escapeshellarg($outputPath) . " 2>&1";
         shell_exec($cmd);
         return $outputPath;
     }

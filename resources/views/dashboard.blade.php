@@ -295,50 +295,73 @@
         finally { btn.disabled = false; btn.innerHTML = originalText; lucide.createIcons(); }
     });
 
+    // CƠ CHẾ POLLING SIÊU CẤP
     setInterval(() => {
         fetch('/status?t=' + Date.now())
             .then(res => res.json())
             .then(data => {
-                data.data.forEach(job => {
-                    updateJobUI(job);
-                });
-            });
-    }, 3000);
+                if (data && data.data) {
+                    data.data.forEach(job => {
+                        updateJobUI(job);
+                    });
+                }
+            })
+            .catch(err => console.error("Polling error:", err));
+    }, 2500); // 2.5 giây một lần cho nhanh
 
     function updateJobUI(job) {
-        let el = document.getElementById(`job-${job.id}`);
+        const el = document.getElementById(`job-${job.id}`);
         if (!el) return;
         
+        // 1. Cập nhật Badge Trạng thái
         const badge = el.querySelector('.status-badge');
-        if (badge.innerText !== job.status) {
-             badge.className = `status-badge status-${job.status}`;
-             badge.innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
+        if (badge) {
+            const newText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
+            if (badge.innerText !== newText) {
+                badge.className = `status-badge status-${job.status}`;
+                badge.innerText = newText;
+            }
         }
 
+        // 2. Cập nhật Body dựa trên trạng thái
         const body = el.querySelector('.job-body');
+        if (!body) return;
+
         if (job.status === 'processing' || job.status === 'pending') {
-            const fill = el.querySelector('.progress-fill');
-            if (fill) fill.style.width = job.progress + '%';
-            const msg = el.querySelector('.job-body div div:first-child');
-            if (msg) msg.innerText = job.status_message || 'Đang xử lý...';
+            // Đảm bảo có thanh tiến độ
+            if (!body.querySelector('.progress-bar')) {
+                body.innerHTML = `
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <div style="font-size:0.75rem;color:var(--primary);"><span class="pulse"></span> ${job.status_message || 'Đang xử lý...'}</div>
+                        <button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button>
+                    </div>
+                `;
+                lucide.createIcons();
+            } else {
+                // Cập nhật thanh fill
+                const fill = body.querySelector('.progress-fill');
+                if (fill) fill.style.width = job.progress + '%';
+                // Cập nhật message
+                const msg = body.querySelector('div div:first-child');
+                if (msg) msg.innerHTML = `<span class="pulse"></span> ${job.status_message || 'Đang xử lý...'} (${job.progress}%)`;
+            }
+            el.dataset.finalized = ""; // Reset trạng thái cuối
         } else {
-            // Nếu trạng thái thay đổi sang completed/failed, cập nhật lại toàn bộ body
-            if (!el.dataset.finalized) {
+            // Trạng thái cuối (Completed / Failed)
+            if (el.dataset.finalized !== job.status) {
                 if (job.status === 'completed') {
-                    const finishTime = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
-                    const timeEl = el.querySelector('.job-header div div:last-child');
-                    if (timeEl && !timeEl.innerText.includes('Xong')) timeEl.innerHTML += ` | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: ${finishTime}`;
                     body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
                 } else if (job.status === 'failed') {
                     body.innerHTML = `
                         <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:12px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">
                             <div style="font-weight:700;margin-bottom:6px;"><i data-lucide="alert-circle" size="14"></i> CHI TIẾT LỖI RENDER:</div>
-                            <div style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;background:#000;color:#0f0;padding:10px;border-radius:6px;line-height:1.4;">${job.error_message}</div>
+                            <div style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;background:#000;color:#0f0;padding:10px;border-radius:6px;line-height:1.4;">${job.error_message || 'Không có chi tiết lỗi.'}</div>
                         </div>
                         <button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                     `;
                 }
-                el.dataset.finalized = "true";
+                el.dataset.finalized = job.status;
                 lucide.createIcons();
             }
         }
