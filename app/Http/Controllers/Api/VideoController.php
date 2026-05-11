@@ -21,7 +21,7 @@ class VideoController extends Controller
             }
         }
 
-        $validated = $request->validate([
+        $validated = validator($data, [
             'project_name' => 'nullable|string',
             'audio_url' => 'required|array',
             'bg_music_url' => 'nullable|array',
@@ -30,7 +30,7 @@ class VideoController extends Controller
             'subtitle_data' => 'nullable|string',
             'settings' => 'nullable|array',
             'webhook_url' => 'nullable|string',
-        ]);
+        ])->validate();
 
         $videoJob = VideoJob::create($validated);
 
