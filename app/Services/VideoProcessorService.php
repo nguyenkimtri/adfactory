@@ -206,7 +206,7 @@ class VideoProcessorService
             $durX = 15 / $speed; $durY = 11 / $speed;
             
             $vFilters[] = "[2:v]scale={$size}:-1,format=rgba,colorchannelmixer=aa={$opacity}[logo]";
-            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))':shortest=1[vlogo]"; 
+            $vFilters[] = "[{$lastV}][logo]overlay=x='if(lte(mod(t,{$durX}*2),{$durX}), (W-w)*mod(t,{$durX})/{$durX}, (W-w)*(1-mod(t,{$durX})/{$durX}))':y='if(lte(mod(t,{$durY}*2),{$durY}), (H-h)*mod(t,{$durY})/{$durY}, (H-h)*(1-mod(t,{$durY})/{$durY}))'[vlogo]"; 
             $lastV = "vlogo"; 
         }
 
@@ -265,7 +265,8 @@ class VideoProcessorService
         if (!file_exists($outputPath) || $returnCode !== 0) {
             Log::error("Job {$this->job->id} FFmpeg Failed. Full Log: " . $fullLog);
             // Hiện toàn bộ log vì banner đã bị ẩn, lỗi sẽ hiện ngay đầu
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . ($fullLog ?: "No output from FFmpeg"));
+            // Lấy tối đa log để tìm lỗi
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, 0, 10000));
         }
     }
 
