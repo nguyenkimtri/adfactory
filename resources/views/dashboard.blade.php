@@ -255,11 +255,15 @@
                 @if($job->status === 'processing' || $job->status === 'pending')
                     <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
                     <div class="status-msg" style="font-size: 0.75rem; color: var(--primary); margin-top: 5px;">{{ $job->status_message }}</div>
+                    <div style="margin-top: 10px;">
+                        <button onclick="deleteJob('{{ $job->id }}', 'Bạn có chắc muốn hủy tiến trình này?')" class="btn-action btn-delete" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger);"><i data-lucide="x-circle" size="14"></i> Hủy</button>
+                    </div>
                 @endif
                 @if($job->status === 'completed')
                     <div style="display: flex; gap: 8px; margin-top: 10px;">
                         <button onclick="playVideo('{{ $job->output_path }}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
                         <button onclick="shareLink('{{ $job->output_path }}')" class="btn-action btn-share"><i data-lucide="share-2" size="14"></i> Copy Link</button>
+                        <a href="{{ $job->output_path }}" download class="btn-action btn-download"><i data-lucide="download" size="14"></i> Tải về</a>
                         <button onclick="deleteJob('{{ $job->id }}')" class="btn-action btn-delete"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                     </div>
                 @endif
@@ -269,6 +273,7 @@
     </div>
 </div>
 
+<!-- API MODAL -->
 <div id="api-modal" class="modal">
     <div class="modal-content">
         <div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div>
@@ -296,6 +301,7 @@
     </div>
 </div>
 
+<!-- GUIDE MODAL -->
 <div id="guide-modal" class="modal">
     <div class="modal-content">
         <div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div>
@@ -355,8 +361,8 @@
             setTimeout(() => toast.style.display = 'none', 2000);
         });
     }
-    function deleteJob(id) {
-        if (confirm('Xóa video này?')) {
+    function deleteJob(id, confirmMsg = 'Xóa video này?') {
+        if (confirm(confirmMsg)) {
             fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } })
             .then(() => updateStatus());
         }
@@ -373,11 +379,15 @@
                     const prog = isActive ? `
                         <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div>
                         <div class="status-msg" style="font-size: 0.75rem; color: var(--primary); margin-top: 5px;">${job.status_message || ''}</div>
+                        <div style="margin-top: 10px;">
+                            <button onclick="deleteJob('${job.id}', 'Bạn có chắc muốn hủy tiến trình này?')" class="btn-action btn-delete" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger);"><i data-lucide="x-circle" size="14"></i> Hủy</button>
+                        </div>
                     ` : '';
                     const btns = job.status === 'completed' ? `
                         <div style="display: flex; gap: 8px; margin-top: 10px;">
                             <button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
                             <button onclick="shareLink('${job.output_path}')" class="btn-action btn-share"><i data-lucide="share-2" size="14"></i> Copy Link</button>
+                            <a href="${job.output_path}" download class="btn-action btn-download"><i data-lucide="download" size="14"></i> Tải về</a>
                             <button onclick="deleteJob('${job.id}')" class="btn-action btn-delete"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                         </div>
                     ` : (job.status === 'failed' ? `<div style="color:var(--danger);font-size:0.8rem;margin-top:5px;">Lỗi: ${job.error_message ? job.error_message.substring(0, 50) + '...' : 'Không rõ'}</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-delete" style="margin-top:5px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>` : '');
