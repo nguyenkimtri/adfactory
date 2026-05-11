@@ -249,7 +249,7 @@ class VideoProcessorService
         $vFilterStr = implode(';', $vFilters);
         $cmd = "ffmpeg -hide_banner -y " . implode(' ', $vInputs) . " -filter_complex " . escapeshellarg($vFilterStr) . 
                " -map \"[{$lastV}]\" -map 1:a -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart " . escapeshellarg($outputPath) . " 2>&1";
+               " -c:v libx264 -preset ultrafast -threads 0 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Final Duration: {$duration}");
         exec($cmd, $outputArray, $returnCode);
