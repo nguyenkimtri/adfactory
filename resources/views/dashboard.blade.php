@@ -177,21 +177,21 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket tự động kết nối qua SSL của Cloudflare.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket kết nối qua cổng 2096 (Cloudflare SSL).</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // SỬA LỖI: Bổ sung Cluster và cấu hình bắt buộc cho Pusher-JS
+    // SỬA LỖI: Dùng cổng 2096 - Cổng HTTPS tin cậy nhất của Cloudflare
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
         wsHost: window.location.hostname,
-        wsPort: 443,
-        wssPort: 443,
+        wsPort: 2096,
+        wssPort: 2096,
         forceTLS: true,
-        cluster: 'mt1', // Bắt buộc phải có cluster mặc dù Reverb không dùng
+        cluster: 'mt1',
         disableStats: true,
         enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'],
     });
@@ -240,13 +240,6 @@
             fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }).then(() => location.reload());
         }
     }
-    document.getElementById('main-form').onsubmit = function(e) {
-        const textarea = this.querySelector('textarea[name="raw_video_sources"]');
-        const lines = textarea.value.split('\n').filter(l => l.trim() !== '');
-        lines.forEach(line => {
-            const input = document.createElement('input'); input.type = 'hidden'; input.name = 'video_sources[]'; input.value = line.trim(); this.appendChild(input);
-        });
-    };
 </script>
 </body>
 </html>
