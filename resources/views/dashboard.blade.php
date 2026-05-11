@@ -185,7 +185,6 @@
 <script>
     lucide.createIcons();
 
-    // CHIẾN THUẬT SIÊU HIỂN THỊ: Tự động phát hiện và ép Polling nếu cần
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
@@ -200,14 +199,18 @@
 
     const wsStatus = document.getElementById('ws-status');
     
-    // Tự động kiểm tra trạng thái mỗi giây
+    // Sửa lỗi JS 'name' undefined khi đang connecting
     setInterval(() => {
         if (echo.connector && echo.connector.pusher) {
             const state = echo.connector.pusher.connection.state;
             wsStatus.className = 'ws-' + state;
+            
             if (state === 'connected') {
-                const transport = echo.connector.pusher.connection.transport.name;
-                wsStatus.innerText = '● Realtime: Connected (' + transport + ')';
+                const conn = echo.connector.pusher.connection;
+                const transportName = (conn.transport && conn.transport.name) ? conn.transport.name : 'polling';
+                wsStatus.innerText = '● Realtime: Connected (' + transportName + ')';
+            } else if (state === 'connecting') {
+                wsStatus.innerText = '● Realtime: Connecting...';
             } else {
                 wsStatus.innerText = '● Realtime: ' + state.charAt(0).toUpperCase() + state.slice(1);
             }
