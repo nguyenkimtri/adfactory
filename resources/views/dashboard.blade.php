@@ -31,14 +31,10 @@
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); flex-shrink: 0; }
         .top-bar h1 { font-size: 1.5rem; margin: 0; background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
-        .top-btns { display: flex; gap: 12px; align-items: center; }
         
         #ws-status { font-size: 0.7rem; padding: 6px 12px; border-radius: 99px; display: flex; align-items: center; gap: 6px; font-weight: 600; }
         .ws-connected { color: var(--success); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); }
         .ws-connecting { color: var(--accent); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); }
-
-        .btn-top { padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; display: flex; align-items: center; gap: 6px; text-decoration: none; }
-        .btn-top:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); }
 
         .main-container { display: grid; grid-template-columns: 520px 1fr; gap: 0; flex: 1; overflow: hidden; }
         .sidebar { padding: 20px; overflow-y: auto; border-right: 1px solid var(--border); background: rgba(15, 23, 42, 0.4); }
@@ -48,12 +44,24 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         input, textarea, select { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem; }
-        textarea { resize: vertical; min-height: 80px; }
         
+        .slider-box { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid var(--border); }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
+        input[type="range"] { -webkit-appearance: none; height: 3px; background: #334155; width: 100%; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; cursor: pointer; }
+
+        .switch-container { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 15px; cursor: pointer; }
+        .switch-text { font-size: 0.9rem; font-weight: 600; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-toggle { position: absolute; cursor: pointer; inset: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider-toggle:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider-toggle { background-color: var(--primary); }
+        input:checked + .slider-toggle:before { transform: translateX(20px); }
+
         .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; position: relative; animation: slideIn 0.4s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         
-        .job-header { display: flex; justify-content: space-between; align-items: center; }
         .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
         .status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; }
         .status-pending { background: rgba(245, 158, 11, 0.1); color: var(--accent); }
@@ -62,16 +70,11 @@
 
         .btn-action { padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; display: flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none; }
         .btn-play { color: var(--success); }
-
         .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 10px; }
-        .modal-content { 
-            background: #000; border: 1px solid var(--border); border-radius: 20px; padding: 10px; 
-            max-width: 95vw; max-height: 95vh; overflow: hidden; position: relative;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
+        .modal-content { background: #000; border: 1px solid var(--border); border-radius: 20px; padding: 10px; max-width: 95vw; max-height: 95vh; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(255,255,255,0.2); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
         #main-player { max-height: 85vh; max-width: 100%; border-radius: 12px; display: block; }
 
@@ -90,10 +93,7 @@
 
 <div class="top-bar">
     <h1>🎬 Video Factory Studio</h1>
-    <div class="top-btns">
-        <div id="ws-status" class="ws-connecting">● Realtime: Initializing...</div>
-        <button class="btn-top" onclick="openModal('api-modal')"><i data-lucide="code"></i> API Docs</button>
-    </div>
+    <div id="ws-status" class="ws-connecting">● Realtime: Initializing...</div>
 </div>
 
 <div class="main-container">
@@ -102,13 +102,16 @@
             @csrf
             <div class="card">
                 <h3><i data-lucide="link"></i> Tài nguyên</h3>
-                <div class="form-group"><label>Audio Chính (Mỗi link 1 dòng)</label><textarea name="audio_url" placeholder="Dán các link audio MP3..." required></textarea></div>
+                <div class="form-group"><label>Audio Chính (Mỗi link 1 dòng)</label><textarea name="audio_url" placeholder="Dán link audio MP3..." required></textarea></div>
                 <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="video_sources" rows="4" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
-                <div class="form-group"><label>Nhạc nền (Mỗi link 1 dòng)</label><textarea name="bg_music_url" placeholder="Dán các link nhạc nền..."></textarea></div>
+                <div class="form-group"><label>Nhạc nền (Mỗi link 1 dòng)</label><textarea name="bg_music_url" placeholder="Link nhạc nền..."></textarea></div>
                 
-                <label style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px; cursor:pointer;">
-                    <span style="font-weight:600; font-size:0.9rem;">Tự động tạo phụ đề AI</span>
-                    <input type="checkbox" name="settings[auto_subtitle]" checked style="width:20px;height:20px;cursor:pointer;">
+                <label class="switch-container">
+                    <span class="switch-text">Tự động tạo phụ đề AI</span>
+                    <span class="switch">
+                        <input type="checkbox" name="settings[auto_subtitle]" checked>
+                        <span class="slider-toggle"></span>
+                    </span>
                 </label>
                 <div class="form-group"><label>Logo</label><input type="text" name="logo_url" placeholder="Link ảnh logo PNG..."></div>
             </div>
@@ -117,7 +120,16 @@
                 <h3><i data-lucide="settings"></i> Tinh chỉnh</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom:15px;">
                     <div class="form-group"><label>Định dạng</label><select name="settings[format]"><option value="9:16">Dọc (9:16)</option><option value="16:9">Ngang (16:9)</option></select></div>
-                    <div class="form-group"><label>Âm lượng Audio</label><input type="number" name="settings[volume_audio]" value="100" style="padding:8px;"></div>
+                    <div class="form-group"><label>Độ mờ Logo</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-logo-op">80%</span></div><input type="range" name="settings[logo_opacity]" min="0" max="100" value="80" oninput="document.getElementById('v-logo-op').innerText = this.value + '%'"></div></div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom:15px;">
+                    <div class="form-group"><label>Kích thước Logo</label><div class="slider-box"><div class="slider-label"><span>Size</span><span id="v-logo-size">200px</span></div><input type="range" name="settings[logo_size]" min="50" max="500" value="200" oninput="document.getElementById('v-logo-size').innerText = this.value + 'px'"></div></div>
+                    <div class="form-group"><label>Tốc độ Logo</label><div class="slider-box"><div class="slider-label"><span>Speed</span><span id="v-logo-speed">1x</span></div><input type="range" name="settings[logo_speed]" min="1" max="10" value="5" oninput="document.getElementById('v-logo-speed').innerText = (this.value/5).toFixed(1) + 'x'"></div></div>
+                </div>
+                <div class="form-group"><label>Âm lượng Audio chính</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-audio">100%</span></div><input type="range" name="settings[volume_audio]" min="0" max="200" value="100" oninput="document.getElementById('v-vol-audio').innerText = this.value + '%'"></div></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom:15px;">
+                    <div class="form-group"><label>Nhạc nền</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-music">20%</span></div><input type="range" name="settings[volume_music]" min="0" max="100" value="20" oninput="document.getElementById('v-vol-music').innerText = this.value + '%'"></div></div>
+                    <div class="form-group"><label>Video gốc</label><div class="slider-box"><div class="slider-label"><span>Mức</span><span id="v-vol-video">0%</span></div><input type="range" name="settings[volume_video]" min="0" max="100" value="0" oninput="document.getElementById('v-vol-video').innerText = this.value + '%'"></div></div>
                 </div>
                 <button type="submit" id="btn-submit" class="btn-render"><i data-lucide="zap"></i> BẮT ĐẦU RENDER</button>
             </div>
@@ -132,10 +144,7 @@
                     <div class="job-header">
                         <div>
                             <div class="job-title" style="font-weight:700;">vd-factory-{{ $job->id }}+{{ $job->created_at->format('dmY') }}</div>
-                            <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">
-                                <i data-lucide="clock" size="12" style="vertical-align: middle;"></i> 
-                                {{ $job->created_at->format('H:i:s d/m/Y') }}
-                            </div>
+                            <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> {{ $job->created_at->format('H:i:s d/m/Y') }}</div>
                         </div>
                         <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
                     </div>
