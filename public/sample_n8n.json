@@ -1,0 +1,18 @@
+{
+    "project_name": "Video TikTok Viral 01",
+    "audio_url": "https://example.com/voice.mp3",
+    "bg_music_url": "https://example.com/background-music.mp3",
+    "video_sources": [
+        "https://www.youtube.com/watch?v=video1",
+        "https://www.youtube.com/watch?v=video2"
+    ],
+    "logo_url": "https://example.com/my-logo.png",
+    "settings": {
+        "format": "9:16",
+        "auto_subtitle": true,
+        "volume_audio": 100,
+        "volume_music": 20,
+        "logo_opacity": 80
+    },
+    "webhook_url": "https://your-n8n-webhook.com/endpoint"
+}

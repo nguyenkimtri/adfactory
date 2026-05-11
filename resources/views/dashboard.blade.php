@@ -54,11 +54,11 @@
             font-weight: 700;
         }
 
-        .top-btns { display: flex; gap: 15px; }
+        .top-btns { display: flex; gap: 12px; }
         .btn-top {
-            padding: 8px 16px;
+            padding: 8px 14px;
             border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
             border: 1px solid var(--border);
@@ -66,9 +66,11 @@
             color: #fff;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            text-decoration: none;
         }
-        .btn-top:hover { background: rgba(255,255,255,0.1); }
+        .btn-top:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); }
+        .btn-sample { background: rgba(16, 185, 129, 0.1); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
 
         .main-container {
             display: grid;
@@ -78,28 +80,9 @@
             overflow: hidden;
         }
 
-        .sidebar {
-            padding: 20px;
-            overflow-y: auto;
-            border-right: 1px solid var(--border);
-            background: rgba(15, 23, 42, 0.4);
-        }
-
-        .content {
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            padding: 20px;
-            border-radius: 20px;
-            margin-bottom: 20px;
-        }
-
+        .sidebar { padding: 20px; overflow-y: auto; border-right: 1px solid var(--border); background: rgba(15, 23, 42, 0.4); }
+        .content { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 20px; margin-bottom: 20px; }
         h3 { display: flex; align-items: center; gap: 10px; margin-top: 0; font-size: 1.1rem; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -111,20 +94,7 @@
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; cursor: pointer; }
 
         .btn-render {
-            background: linear-gradient(135deg, #06b6d4, #3b82f6);
-            color: #fff;
-            border: none;
-            padding: 16px;
-            border-radius: 16px;
-            font-weight: 700;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            box-shadow: 0 10px 20px -5px rgba(6, 182, 212, 0.4);
+            background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; border: none; padding: 16px; border-radius: 16px; font-weight: 700; font-size: 1rem; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 10px 20px -5px rgba(6, 182, 212, 0.4);
         }
 
         .job-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 15px; border-radius: 16px; margin-bottom: 15px; }
@@ -150,17 +120,20 @@
         .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(0,0,0,0.5); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
 
         .toast { position: fixed; bottom: 30px; right: 30px; background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; display: none; z-index: 3000; }
-        
         .checkbox-group { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; }
         .checkbox-group input { width: 20px; height: 20px; cursor: pointer; }
         .checkbox-group label { margin: 0; cursor: pointer; text-transform: none; font-size: 0.9rem; color: #fff; }
+
+        pre { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; color: var(--primary); font-size: 0.85rem; }
+        code { font-family: monospace; }
     </style>
 </head>
 <body>
 
 <div class="top-bar">
-    <h1>🎬 Video Factory Studio</h1>
+    <h1>🎬 Video Factory</h1>
     <div class="top-btns">
+        <a href="/sample_n8n.json" download class="btn-top btn-sample"><i data-lucide="download-cloud"></i> Tải mẫu n8n</a>
         <button class="btn-top" onclick="openModal('api-modal')"><i data-lucide="code"></i> API Docs</button>
         <button class="btn-top" onclick="openModal('guide-modal')"><i data-lucide="help-circle"></i> Hướng dẫn</button>
     </div>
@@ -201,8 +174,7 @@
             </div>
 
             <div class="card">
-                <h3><i data-lucide="settings"></i> Tinh chỉnh Logo & Âm lượng</h3>
-                
+                <h3><i data-lucide="settings"></i> Tinh chỉnh</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
                         <label>Định dạng</label>
@@ -219,24 +191,6 @@
                         </div>
                     </div>
                 </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label>Kích thước Logo</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Size</span><span id="v-logo-size">200px</span></div>
-                            <input type="range" name="settings[logo_size]" min="50" max="500" value="200" oninput="document.getElementById('v-logo-size').innerText = this.value + 'px'">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Tốc độ Logo</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Speed</span><span id="v-logo-speed">1x</span></div>
-                            <input type="range" name="settings[logo_speed]" min="1" max="10" value="5" oninput="document.getElementById('v-logo-speed').innerText = (this.value/5).toFixed(1) + 'x'">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label>Âm lượng Audio Chính</label>
                     <div class="slider-box">
@@ -244,24 +198,6 @@
                         <input type="range" name="settings[volume_audio]" min="0" max="200" value="100" oninput="document.getElementById('v-vol-audio').innerText = this.value + '%'">
                     </div>
                 </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label>Âm lượng Nhạc nền</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Mức độ</span><span id="v-vol-music">20%</span></div>
-                            <input type="range" name="settings[volume_music]" min="0" max="100" value="20" oninput="document.getElementById('v-vol-music').innerText = this.value + '%'">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Âm lượng Video gốc</label>
-                        <div class="slider-box">
-                            <div class="slider-label"><span>Mức độ</span><span id="v-vol-video">0%</span></div>
-                            <input type="range" name="settings[volume_video]" min="0" max="100" value="0" oninput="document.getElementById('v-vol-video').innerText = this.value + '%'">
-                        </div>
-                    </div>
-                </div>
-
                 <button type="submit" class="btn-render"><i data-lucide="zap"></i> BẮT ĐẦU RENDER</button>
             </div>
         </form>
@@ -274,29 +210,70 @@
             <div class="job-item">
                 <div class="job-header">
                     <div>
-                        <div class="job-title">{{ $job->project_name }}</div>
-                        <div style="color: var(--text-muted); font-size: 0.8rem;">{{ $job->created_at->format('H:i:s d/m/Y') }}</div>
+                        <div class="job-title">{{ $job->project_name ?? 'Video Job #'.$job->id }}</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem;">{{ $job->created_at->format('H:i d/m/Y') }}</div>
                     </div>
                     <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
                 </div>
                 @if($job->status === 'processing' || $job->status === 'pending')
                     <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
                     <div class="status-msg" style="font-size: 0.75rem; color: var(--primary); margin-top: 5px;">{{ $job->status_message }}</div>
-                    <div style="margin-top: 10px;">
-                        <button onclick="deleteJob('{{ $job->id }}', 'Bạn có chắc muốn hủy tiến trình này?')" class="btn-action btn-delete" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger);"><i data-lucide="x-circle" size="14"></i> Hủy</button>
-                    </div>
                 @endif
                 @if($job->status === 'completed')
                     <div style="display: flex; gap: 8px; margin-top: 10px;">
                         <button onclick="playVideo('{{ $job->output_path }}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
                         <button onclick="shareLink('{{ $job->output_path }}')" class="btn-action btn-share"><i data-lucide="share-2" size="14"></i> Copy Link</button>
-                        <a href="{{ $job->output_path }}" download class="btn-action btn-download"><i data-lucide="download" size="14"></i> Tải về</a>
                         <button onclick="deleteJob('{{ $job->id }}')" class="btn-action btn-delete"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                     </div>
                 @endif
             </div>
             @endforeach
         </div>
+    </div>
+</div>
+
+<!-- API MODAL -->
+<div id="api-modal" class="modal">
+    <div class="modal-content">
+        <div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div>
+        <h3><i data-lucide="code"></i> Tài liệu API cho n8n</h3>
+        <p>Gửi yêu cầu POST đến endpoint sau để tạo video tự động:</p>
+        <pre><code>POST {{ url('/api/video/generate') }}</code></pre>
+        <p>Cấu trúc JSON Body (Bạn có thể tải file mẫu n8n để xem chi tiết):</p>
+        <pre><code>{
+  "project_name": "Tên video",
+  "audio_url": "Link mp3 giọng đọc (Bắt buộc)",
+  "video_sources": ["Link video 1", "Link video 2"],
+  "bg_music_url": "Link nhạc nền",
+  "logo_url": "Link ảnh logo",
+  "settings": {
+    "format": "9:16",
+    "auto_subtitle": true,
+    "volume_audio": 100,
+    "volume_music": 20
+  },
+  "webhook_url": "Link n8n để nhận kết quả khi xong"
+}</code></pre>
+    </div>
+</div>
+
+<!-- GUIDE MODAL -->
+<div id="guide-modal" class="modal">
+    <div class="modal-content">
+        <div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div>
+        <h3><i data-lucide="help-circle"></i> Hướng dẫn sử dụng</h3>
+        <ol>
+            <li><strong>Thủ công:</strong> Điền các link audio, video và logo vào form bên trái, sau đó bấm Render.</li>
+            <li><strong>Tự động (n8n):</strong> 
+                <ul>
+                    <li>Tải file <b>sample_n8n.json</b> ở nút phía trên.</li>
+                    <li>Sử dụng Node "HTTP Request" trong n8n với phương thức POST.</li>
+                    <li>Điền đầy đủ các cột tương ứng từ file mẫu vào phần Body của n8n.</li>
+                </ul>
+            </li>
+            <li><strong>Phụ đề:</strong> Hệ thống sử dụng AI Faster-Whisper để tự tạo phụ đề nhảy chữ viral.</li>
+            <li><strong>Hàng đợi:</strong> Video sẽ được xử lý ngầm, bạn có thể đóng trình duyệt và quay lại sau.</li>
+        </ol>
     </div>
 </div>
 
@@ -307,10 +284,8 @@
     </div>
 </div>
 
-<script src="https://unpkg.com/lucide@latest"></script>
 <script>
     lucide.createIcons();
-
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     function playVideo(url) {
@@ -341,9 +316,9 @@
             setTimeout(() => toast.style.display = 'none', 2000);
         });
     }
-    function deleteJob(id, confirmMsg = 'Xóa video này?') {
-        if (confirm(confirmMsg)) {
-            fetch(`api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } })
+    function deleteJob(id) {
+        if (confirm('Xóa video này?')) {
+            fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } })
             .then(() => updateStatus());
         }
     }
@@ -359,22 +334,18 @@
                     const prog = isActive ? `
                         <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div>
                         <div class="status-msg" style="font-size: 0.75rem; color: var(--primary); margin-top: 5px;">${job.status_message || ''}</div>
-                        <div style="margin-top: 10px;">
-                            <button onclick="deleteJob('${job.id}', 'Bạn có chắc muốn hủy tiến trình này?')" class="btn-action btn-delete" style="background: rgba(239, 68, 68, 0.2); border-color: var(--danger);"><i data-lucide="x-circle" size="14"></i> Hủy</button>
-                        </div>
                     ` : '';
                     const btns = job.status === 'completed' ? `
                         <div style="display: flex; gap: 8px; margin-top: 10px;">
                             <button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
                             <button onclick="shareLink('${job.output_path}')" class="btn-action btn-share"><i data-lucide="share-2" size="14"></i> Copy Link</button>
-                            <a href="${job.output_path}" download class="btn-action btn-download"><i data-lucide="download" size="14"></i> Tải về</a>
                             <button onclick="deleteJob('${job.id}')" class="btn-action btn-delete"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                         </div>
                     ` : (job.status === 'failed' ? `<div style="color:var(--danger);font-size:0.8rem;margin-top:5px;">Lỗi: ${job.error_message ? job.error_message.substring(0, 50) + '...' : 'Không rõ'}</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-delete" style="margin-top:5px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>` : '');
                     
                     html += `<div class="job-item">
                         <div class="job-header">
-                            <div><div class="job-title">${job.project_name || 'audio-factory-'+job.id}</div><div style="color:var(--text-muted);font-size:0.8rem;">${new Date(job.created_at).toLocaleString('vi-VN')}</div></div>
+                            <div><div class="job-title">${job.project_name || 'Video Job #'+job.id}</div><div style="color:var(--text-muted);font-size:0.8rem;">${new Date(job.created_at).toLocaleString('vi-VN')}</div></div>
                             <span class="status-badge status-${job.status}">${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}</span>
                         </div>
                         ${prog} ${btns}
