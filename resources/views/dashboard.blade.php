@@ -182,7 +182,10 @@
                                     <button onclick="deleteJob('{{ $job->id }}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                                 </div>
                             @elseif($job->status === 'failed')
-                                <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: {{ $job->error_message }}</div>
+                                <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:12px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">
+                                    <div style="font-weight:700;margin-bottom:6px;"><i data-lucide="alert-circle" size="14"></i> CHI TIẾT LỖI RENDER:</div>
+                                    <div style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;background:#000;color:#0f0;padding:10px;border-radius:6px;line-height:1.4;">{{ $job->error_message }}</div>
+                                </div>
                                 <button onclick="deleteJob('{{ $job->id }}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
                             @endif
                         </div>
@@ -306,7 +309,14 @@
             el.querySelector('.job-header div div:last-child').innerHTML += ` | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: ${finishTime}`;
             body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
         } else if (job.status === 'failed') {
-            body.innerHTML = `<div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: ${job.error_message}</div><button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>`;
+            body.innerHTML = `
+                <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:12px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">
+                    <div style="font-weight:700;margin-bottom:6px;"><i data-lucide="alert-circle" size="14"></i> CHI TIẾT LỖI RENDER:</div>
+                    <div style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;background:#000;color:#0f0;padding:10px;border-radius:6px;line-height:1.4;">${job.error_message}</div>
+                </div>
+                <button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
+            `;
+            lucide.createIcons();
         }
         lucide.createIcons();
     });
