@@ -205,37 +205,43 @@ class VideoProcessorService
         $volVideo = ($this->job->settings['volume_video'] ?? 0) / 100;
         $volMusic = ($this->job->settings['volume_music'] ?? 20) / 100;
 
-        $aFilters = ["[1:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
-        $mixing = ["[amain]"];
-        $audioInputs = 1;
+        // --- BƯỚC MỚI: TRỘN ÂM THANH RIÊNG BIỆT ĐỂ ĐẢM BẢO LUÔN CÓ TIẾNG ---
+        $mixedAudioPath = "{$this->tempDir}/final_mixed.mp3";
+        $aInputs = ["-i " . escapeshellarg($audioPath)];
+        $aFilters = ["[0:a]aresample=44100,pan=stereo,volume={$volMain}[amain]"];
+        $aMixing = ["[amain]"];
+        $aCount = 1;
 
         if ($volVideo > 0) {
-            $aFilters[] = "[0:a]aresample=44100,pan=stereo,volume={$volVideo}[avideo]";
-            $mixing[] = "[avideo]";
-            $audioInputs++;
+            $aInputs[] = "-i " . escapeshellarg($videoPath);
+            $aFilters[] = "[{$aCount}:a]aresample=44100,pan=stereo,volume={$volVideo}[avideo]";
+            $aMixing[] = "[avideo]";
+            $aCount++;
         }
 
-        if ($bgMusicIndex !== null) { 
-            $aFilters[] = "[{$bgMusicIndex}:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]"; 
-            $mixing[] = "[abg]";
-            $audioInputs++;
+        if ($bgMusicIndex !== null) {
+            $aInputs[] = "-i " . escapeshellarg($bgMusicPath);
+            $aFilters[] = "[{$aCount}:a]aresample=44100,pan=stereo,volume={$volMusic}[abg]";
+            $aMixing[] = "[abg]";
+            $aCount++;
         }
-        
-        // Nếu chỉ có 1 nguồn âm (audio chính), map trực tiếp để tránh lỗi amix
-        if ($audioInputs === 1) {
-            $filterStr = implode(';', $vFilters);
-            $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
-                   " -map " . escapeshellarg("[{$lastV}]") . " -map 1:a -t " . escapeshellarg($duration) . 
-                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a libmp3lame -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
+
+        $aFilterStr = implode(';', $aFilters);
+        if ($aCount > 1) {
+            $aFilterStr .= ";" . implode('', $aMixing) . "amix=inputs={$aCount}:duration=first:dropout_transition=0[outa]";
         } else {
-            // Sử dụng bộ trộn amix nếu có nhiều nguồn (nhạc nền, tiếng video...)
-            $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first:dropout_transition=0[amixout]";
-            $lastA = "amixout";
-            $filterStr = implode(';', array_merge($vFilters, $aFilters));
-            $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
-                   " -map " . escapeshellarg("[{$lastV}]") . " -map " . escapeshellarg("[{$lastA}]") . " -t " . escapeshellarg($duration) . 
-                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a libmp3lame -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
+            $aFilterStr .= ";[amain]copy[outa]";
         }
+
+        $aCmd = "ffmpeg -y " . implode(' ', $aInputs) . " -filter_complex " . escapeshellarg($aFilterStr) . " -map \"[outa]\" -ac 2 -ar 44100 " . escapeshellarg($mixedAudioPath);
+        shell_exec($aCmd);
+
+        // --- BƯỚC CUỐI: GHÉP VIDEO VỚI ÂM THANH ĐÃ TRỘN ---
+        $vFilterStr = implode(';', $vFilters);
+        $cmd = "ffmpeg -hide_banner -y -stream_loop -1 -i " . escapeshellarg($videoPath) . " -i " . escapeshellarg($mixedAudioPath) . 
+               " -filter_complex " . escapeshellarg($vFilterStr) . 
+               " -map \"[{$lastV}]\" -map 1:a -t " . escapeshellarg($duration) . 
+               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
