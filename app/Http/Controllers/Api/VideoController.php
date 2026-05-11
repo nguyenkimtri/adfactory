@@ -28,7 +28,7 @@ class VideoController extends Controller
         // Đẩy vào hàng đợi xử lý ngầm
         ProcessVideoJob::dispatch($videoJob);
 
-        if ($request->wantsJson()) {
+        if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'message' => 'Video job created and queued successfully.',
                 'job_id' => $videoJob->id,
@@ -37,5 +37,18 @@ class VideoController extends Controller
         }
 
         return back()->with('success', 'Video job created and queued successfully.');
+    }
+
+    public function status()
+    {
+        $jobs = VideoJob::latest()->take(10)->get();
+        return response()->json($jobs);
+    }
+
+    public function destroy($id)
+    {
+        $job = VideoJob::findOrFail($id);
+        $job->delete();
+        return response()->json(['message' => 'Job deleted.']);
     }
 }
