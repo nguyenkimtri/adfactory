@@ -166,7 +166,7 @@ class VideoProcessorService
         
         $logoIndex = null;
         if ($logoPath) {
-            $inputs[] = "-ignore_loop 0 -loop 1 -i " . escapeshellarg($logoPath);
+            $inputs[] = "-loop 1 -i " . escapeshellarg($logoPath);
             $logoIndex = count($inputs) - 1;
         }
 

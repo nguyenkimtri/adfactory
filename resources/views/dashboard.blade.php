@@ -295,30 +295,58 @@
         finally { btn.disabled = false; btn.innerHTML = originalText; lucide.createIcons(); }
     });
 
-    echo.channel('jobs').listen('.job.updated', (e) => {
-        const job = e.job; 
+    // Fallback Polling nếu Echo không hoạt động
+    setInterval(() => {
+        fetch('/status')
+            .then(res => res.json())
+            .then(data => {
+                data.data.forEach(job => {
+                    updateJobUI(job);
+                });
+            });
+    }, 3000);
+
+    function updateJobUI(job) {
         let el = document.getElementById(`job-${job.id}`);
         if (!el) return;
-        el.querySelector('.status-badge').className = `status-badge status-${job.status}`;
-        el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
+        
+        const badge = el.querySelector('.status-badge');
+        if (badge.innerText !== job.status) {
+             badge.className = `status-badge status-${job.status}`;
+             badge.innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
+        }
+
         const body = el.querySelector('.job-body');
         if (job.status === 'processing' || job.status === 'pending') {
-            body.innerHTML = `<div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div><div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;"><div style="font-size:0.75rem;color:var(--primary);">${job.status_message || 'Đang xử lý...'}</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button></div>`;
-        } else if (job.status === 'completed') {
-            const finishTime = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
-            el.querySelector('.job-header div div:last-child').innerHTML += ` | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: ${finishTime}`;
-            body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
-        } else if (job.status === 'failed') {
-            body.innerHTML = `
-                <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:12px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">
-                    <div style="font-weight:700;margin-bottom:6px;"><i data-lucide="alert-circle" size="14"></i> CHI TIẾT LỖI RENDER:</div>
-                    <div style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;background:#000;color:#0f0;padding:10px;border-radius:6px;line-height:1.4;">${job.error_message}</div>
-                </div>
-                <button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
-            `;
-            lucide.createIcons();
+            const fill = el.querySelector('.progress-fill');
+            if (fill) fill.style.width = job.progress + '%';
+            const msg = el.querySelector('.job-body div div:first-child');
+            if (msg) msg.innerText = job.status_message || 'Đang xử lý...';
+        } else {
+            // Nếu trạng thái thay đổi sang completed/failed, cập nhật lại toàn bộ body
+            if (!el.dataset.finalized) {
+                if (job.status === 'completed') {
+                    const finishTime = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+                    const timeEl = el.querySelector('.job-header div div:last-child');
+                    if (timeEl && !timeEl.innerText.includes('Xong')) timeEl.innerHTML += ` | <i data-lucide="check-circle" size="12" style="color:var(--success)"></i> Xong: ${finishTime}`;
+                    body.innerHTML = `<div style="display:flex;gap:8px;"><button onclick="playVideo('${job.output_path}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button><button onclick="copyToClipboard('${job.output_path}')" class="btn-action btn-copy"><i data-lucide="copy" size="14"></i> Copy Link</button><a href="${job.output_path}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a><button onclick="deleteJob('${job.id}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button></div>`;
+                } else if (job.status === 'failed') {
+                    body.innerHTML = `
+                        <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:12px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">
+                            <div style="font-weight:700;margin-bottom:6px;"><i data-lucide="alert-circle" size="14"></i> CHI TIẾT LỖI RENDER:</div>
+                            <div style="max-height:200px;overflow-y:auto;white-space:pre-wrap;font-family:monospace;background:#000;color:#0f0;padding:10px;border-radius:6px;line-height:1.4;">${job.error_message}</div>
+                        </div>
+                        <button onclick="deleteJob('${job.id}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
+                    `;
+                }
+                el.dataset.finalized = "true";
+                lucide.createIcons();
+            }
         }
-        lucide.createIcons();
+    }
+
+    echo.channel('jobs').listen('.job.updated', (e) => {
+        updateJobUI(e.job);
     });
 
     function playVideo(url) { document.getElementById('main-player').src = url; openModal('video-modal'); }
