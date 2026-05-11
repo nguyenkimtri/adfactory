@@ -238,7 +238,8 @@ class VideoProcessorService
         }
         
         $filterStr = implode(';', array_merge($vFilters, $aFilters));
-        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex \"{$filterStr}\" -map \"[{$lastV}]\" -map \"[{$lastA}]\" -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest " . escapeshellarg($outputPath) . " 2>&1";
+        
+        $cmd = "ffmpeg -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . " -map [{$lastV}] -map [{$lastA}] -t {$duration} -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
@@ -246,7 +247,8 @@ class VideoProcessorService
 
         if (!file_exists($outputPath) || $returnCode !== 0) {
             Log::error("Job {$this->job->id} FFmpeg Failed. Full Log: " . $fullLog);
-            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, 0, 2000));
+            // Lấy 3000 ký tự để không bỏ lỡ lỗi ở giữa
+            throw new \Exception("FFmpeg failed (Code {$returnCode}). Log: " . substr($fullLog, 0, 3000));
         }
     }
 
