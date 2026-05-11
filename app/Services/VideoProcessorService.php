@@ -191,6 +191,7 @@ class VideoProcessorService
         $vFilters = ["[0:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res}[vbase]"];
         $lastV = "vbase";
 
+        /* 
         if ($subtitlePath) {
             $realPath = realpath($subtitlePath);
             // Cách thoát chuỗi tối giản cho ass filter
@@ -198,6 +199,7 @@ class VideoProcessorService
             $vFilters[] = "[{$lastV}]ass='{$safeAssPath}'[vsub]";
             $lastV = "vsub";
         }
+        */
 
         if ($logoPath) { 
             $opacity = ($this->job->settings['logo_opacity'] ?? 80) / 100;
