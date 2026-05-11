@@ -6,6 +6,7 @@
     <title>Video Factory Studio - Premium Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- WebSocket Libraries -->
     <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.15.3/dist/echo.iife.js"></script>
     <style>
@@ -176,25 +177,23 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket tự động kết nối và dự phòng bằng Long Polling.</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket kết nối qua Subdomain wss.phung.vn (Cổng 443 Tunnel).</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // TỐI ƯU CỰC HẠN: Thử cổng 2096, nếu lỗi tự động dùng Long Polling ngay trên domain vdfs.phung.vn
+    // SỬA LỖI: Dùng Subdomain riêng (wss.phung.vn) để xuyên qua Cloudflare Tunnel qua cổng 443 mặc định
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
-        wsHost: window.location.hostname,
-        wsPort: 2096,
-        wssPort: 2096,
+        wsHost: 'wss.phung.vn', // Subdomain bạn vừa tạo trong Cloudflare
+        wsPort: 443,
+        wssPort: 443,
         forceTLS: true,
         cluster: 'mt1',
         disableStats: true,
         enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'],
-        activityTimeout: 10000,
-        pongTimeout: 5000,
     });
 
     const wsStatus = document.getElementById('ws-status');
@@ -202,11 +201,8 @@
         echo.connector.pusher.connection.bind('connected', () => {
             wsStatus.className = 'ws-connected'; wsStatus.innerText = '● Realtime: Connected';
         });
-        echo.connector.pusher.connection.bind('unavailable', () => {
-            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Polling Mode';
-        });
-        echo.connector.pusher.connection.bind('failed', () => {
-            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Retrying...';
+        echo.connector.pusher.connection.bind('disconnected', () => {
+            wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Disconnected';
         });
     }
 
