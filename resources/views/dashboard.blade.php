@@ -78,8 +78,9 @@
         .btn-copy { color: #a855f7; }
         .btn-cancel { color: var(--danger); border-color: rgba(239, 68, 68, 0.2); }
         
-        .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
-        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
+        .progress-bar { height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: #fff; }
+        .status-msg { font-size: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 6px; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
         .modal-content { background: var(--card-bg); width: 90%; max-width: 600px; padding: 20px; border-radius: 24px; position: relative; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
@@ -328,22 +329,19 @@
         if (!body) return;
 
         if (job.status === 'processing' || job.status === 'pending') {
-            // Đảm bảo có thanh tiến độ
             if (!body.querySelector('.progress-bar')) {
                 body.innerHTML = `
                     <div class="progress-bar"><div class="progress-fill" style="width: ${job.progress}%"></div></div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                        <div style="font-size:0.75rem;color:var(--primary);"><span class="pulse"></span> ${job.status_message || 'Đang xử lý...'}</div>
+                        <div class="status-msg"><span class="pulse"></span> ${job.status_message || 'Đang xử lý...'} (${job.progress}%)</div>
                         <button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button>
                     </div>
                 `;
                 lucide.createIcons();
             } else {
-                // Cập nhật thanh fill
                 const fill = body.querySelector('.progress-fill');
                 if (fill) fill.style.width = job.progress + '%';
-                // Cập nhật message
-                const msg = body.querySelector('div div:first-child');
+                const msg = body.querySelector('.status-msg');
                 if (msg) msg.innerHTML = `<span class="pulse"></span> ${job.status_message || 'Đang xử lý...'} (${job.progress}%)`;
             }
             el.dataset.finalized = ""; // Reset trạng thái cuối
