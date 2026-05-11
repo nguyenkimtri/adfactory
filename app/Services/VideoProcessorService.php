@@ -177,7 +177,7 @@ class VideoProcessorService
         $inputs = ["-stream_loop -1 -i \"{$videoPath}\"", "-i \"{$audioPath}\""];
         
         if ($logoPath) $inputs[] = "-ignore_loop 0 -loop 1 -i \"{$logoPath}\"";
-        if ($bgMusicPath) $inputs[] = "-i \"{$bgMusicPath}\"";
+        if ($bgMusicPath) $inputs[] = "-stream_loop -1 -i \"{$bgMusicPath}\"";
         
         $vFilters = ["[0:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res}[vbase]"];
         $lastV = "vbase";
