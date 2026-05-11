@@ -258,7 +258,7 @@ class VideoProcessorService
         Log::info("Job {$this->job->id} Executing Final: " . $cmd);
         
         // Dùng shell_exec thay vì exec để tránh tràn bộ đệm biến PHP
-        shell_exec($cmd);
+        shell_exec($cmd . " >> " . public_path('debug_render.txt') . " 2>&1");
         
         if (!file_exists($outputPath)) {
             $log = @file_get_contents(public_path('debug_render.txt'));
