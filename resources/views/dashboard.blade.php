@@ -172,7 +172,7 @@
                             @if($job->status === 'processing' || $job->status === 'pending')
                                 <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                                    <div style="font-size:0.75rem;color:var(--primary);">{{ $job->status_message ?: 'Đang xếp hàng...' }}</div>
+                                    <div class="status-msg" style="font-size:0.75rem;color:var(--primary);">{{ $job->status_message ?: 'Đang xếp hàng...' }}</div>
                                     <button onclick="deleteJob('{{ $job->id }}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button>
                                 </div>
                             @elseif($job->status === 'completed')
