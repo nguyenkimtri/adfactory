@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
 use App\Models\VideoJob;
 use App\Jobs\ProcessVideoJob;
+use Illuminate\Http\Request;
 
 class VideoController extends Controller
 {
@@ -22,7 +21,7 @@ class VideoController extends Controller
             }
         }
 
-        $validated = validator($data, [
+        $validated = $request->validate([
             'project_name' => 'nullable|string',
             'audio_url' => 'required|array',
             'bg_music_url' => 'nullable|array',
@@ -31,7 +30,7 @@ class VideoController extends Controller
             'subtitle_data' => 'nullable|string',
             'settings' => 'nullable|array',
             'webhook_url' => 'nullable|string',
-        ])->validate();
+        ]);
 
         $videoJob = VideoJob::create($validated);
 
@@ -51,15 +50,13 @@ class VideoController extends Controller
 
     public function status()
     {
-        // Phân trang 5 video mỗi trang
-        $jobs = VideoJob::latest()->paginate(5);
-        return response()->json($jobs);
+        return response()->json(VideoJob::latest()->paginate(5));
     }
 
     public function destroy($id)
     {
         $job = VideoJob::findOrFail($id);
         $job->delete();
-        return response()->json(['message' => 'Job deleted.']);
+        return response()->json(['message' => 'Job deleted']);
     }
 }

@@ -44,6 +44,7 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         input, textarea, select { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem; }
+        textarea { resize: vertical; min-height: 80px; }
         
         .slider-box { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid var(--border); }
         .slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
@@ -139,35 +140,39 @@
     <div class="content">
         <h3><i data-lucide="history"></i> Lịch sử sản xuất</h3>
         <div id="job-list-container">
-            @foreach($jobs as $job)
-                <div class="job-item" id="job-{{ $job->id }}">
-                    <div class="job-header">
-                        <div>
-                            <div class="job-title" style="font-weight:700;">vd-factory-{{ $job->id }}+{{ $job->created_at->format('dmY') }}</div>
-                            <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> {{ $job->created_at->format('H:i:s d/m/Y') }}</div>
-                        </div>
-                        <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
-                    </div>
-                    <div class="job-body" style="margin-top:12px;">
-                        @if($job->status === 'processing' || $job->status === 'pending')
-                            <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
-                            <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">{{ $job->status_message }}</div>
-                        @elseif($job->status === 'completed')
-                            <div style="display:flex;gap:8px;">
-                                <button onclick="playVideo('{{ $job->output_path }}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
-                                <a href="{{ $job->output_path }}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a>
-                                <button onclick="deleteJob('{{ $job->id }}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
+            @if(isset($jobs) && count($jobs) > 0)
+                @foreach($jobs as $job)
+                    <div class="job-item" id="job-{{ $job->id }}">
+                        <div class="job-header">
+                            <div>
+                                <div class="job-title" style="font-weight:700;">vd-factory-{{ $job->id }}+{{ $job->created_at->format('dmY') }}</div>
+                                <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> {{ $job->created_at->format('H:i:s d/m/Y') }}</div>
                             </div>
-                        @elseif($job->status === 'failed')
-                            <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: {{ $job->error_message }}</div>
-                            <button onclick="deleteJob('{{ $job->id }}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
-                        @endif
+                            <span class="status-badge status-{{ $job->status }}">{{ $job->status }} {{ $job->status === 'processing' ? $job->progress.'%' : '' }}</span>
+                        </div>
+                        <div class="job-body" style="margin-top:12px;">
+                            @if($job->status === 'processing' || $job->status === 'pending')
+                                <div class="progress-bar"><div class="progress-fill" style="width: {{ $job->progress }}%"></div></div>
+                                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">{{ $job->status_message }}</div>
+                            @elseif($job->status === 'completed')
+                                <div style="display:flex;gap:8px;">
+                                    <button onclick="playVideo('{{ $job->output_path }}')" class="btn-action btn-play"><i data-lucide="play" size="14"></i> Xem</button>
+                                    <a href="{{ $job->output_path }}" download class="btn-action"><i data-lucide="download" size="14"></i> Tải về</a>
+                                    <button onclick="deleteJob('{{ $job->id }}')" class="btn-action"><i data-lucide="trash-2" size="14"></i> Xóa</button>
+                                </div>
+                            @elseif($job->status === 'failed')
+                                <div style="color:var(--danger);font-size:0.8rem;background:rgba(239, 68, 68, 0.05);padding:10px;border-radius:10px;border:1px solid rgba(239, 68, 68, 0.1)">Lỗi: {{ $job->error_message }}</div>
+                                <button onclick="deleteJob('{{ $job->id }}')" class="btn-action" style="margin-top:10px;"><i data-lucide="trash-2" size="14"></i> Xóa</button>
+                            @endif
+                        </div>
                     </div>
-                </div>
-            @endforeach
+                @endforeach
+            @else
+                <div style="text-align:center; padding:50px; color:var(--text-muted);">Chưa có lịch sử sản xuất.</div>
+            @endif
         </div>
 
-        @if(method_exists($jobs, 'links'))
+        @if(isset($jobs) && method_exists($jobs, 'links'))
         <div class="pagination-container">
             @if($jobs->onFirstPage())
                 <span class="pagination-btn disabled">Trang trước</span>
