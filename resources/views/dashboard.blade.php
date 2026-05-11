@@ -62,7 +62,6 @@
 
         .btn-action { padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: #fff; display: flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none; }
         .btn-play { color: var(--success); }
-        .btn-share { color: #a855f7; }
 
         .progress-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
@@ -76,7 +75,6 @@
         .video-close-btn { position: absolute; top: 15px; right: 15px; z-index: 2010; background: rgba(255,255,255,0.2); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; }
         #main-player { max-height: 85vh; max-width: 100%; border-radius: 12px; display: block; }
 
-        /* PHÂN TRANG PREMIUM */
         .pagination-container { margin-top: auto; padding: 20px 0; display: flex; justify-content: center; gap: 10px; }
         .pagination-btn { padding: 8px 16px; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
         .pagination-btn:hover:not(.disabled) { background: var(--primary); border-color: var(--primary); color: #000; }
@@ -103,7 +101,7 @@
         <form id="render-form">
             @csrf
             <div class="card">
-                <h3><i data-lucide="link"></i> Tài nguyên (Hỗ trợ nhiều link)</h3>
+                <h3><i data-lucide="link"></i> Tài nguyên</h3>
                 <div class="form-group"><label>Audio Chính (Mỗi link 1 dòng)</label><textarea name="audio_url" placeholder="Dán các link audio MP3..." required></textarea></div>
                 <div class="form-group"><label>Video Nguồn (Mỗi link 1 dòng)</label><textarea name="video_sources" rows="4" placeholder="Link YouTube, TikTok, MP4..." required></textarea></div>
                 <div class="form-group"><label>Nhạc nền (Mỗi link 1 dòng)</label><textarea name="bg_music_url" placeholder="Dán các link nhạc nền..."></textarea></div>
@@ -127,7 +125,7 @@
     </div>
 
     <div class="content">
-        <h3><i data-lucide="history"></i> Lịch sử sản xuất (5 video/trang)</h3>
+        <h3><i data-lucide="history"></i> Lịch sử sản xuất</h3>
         <div id="job-list-container">
             @foreach($jobs as $job)
                 <div class="job-item" id="job-{{ $job->id }}">
@@ -160,31 +158,25 @@
             @endforeach
         </div>
 
-        <!-- PHÂN TRANG -->
+        @if(method_exists($jobs, 'links'))
         <div class="pagination-container">
             @if($jobs->onFirstPage())
                 <span class="pagination-btn disabled">Trang trước</span>
             @else
                 <a href="{{ $jobs->previousPageUrl() }}" class="pagination-btn">Trang trước</a>
             @endif
-
             <span class="pagination-btn active">{{ $jobs->currentPage() }}</span>
-
             @if($jobs->hasMorePages())
                 <a href="{{ $jobs->nextPageUrl() }}" class="pagination-btn">Trang sau</a>
             @else
                 <span class="pagination-btn disabled">Trang sau</span>
             @endif
         </div>
+        @endif
     </div>
 </div>
 
-<div id="video-modal" class="modal">
-    <div class="modal-content">
-        <div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div>
-        <video id="main-player" controls autoplay></video>
-    </div>
-</div>
+<div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay></video></div></div>
 
 <script>
     lucide.createIcons();
@@ -206,23 +198,10 @@
 
     function createJobElement(job) {
         const div = document.createElement('div');
-        div.className = 'job-item';
-        div.id = `job-${job.id}`;
+        div.className = 'job-item'; div.id = `job-${job.id}`;
         const now = new Date();
         const ddmmyyyy = `${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}`;
-        div.innerHTML = `
-            <div class="job-header">
-                <div>
-                    <div class="job-title" style="font-weight:700;">vd-factory-${job.id}+${ddmmyyyy}</div>
-                    <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div>
-                </div>
-                <span class="status-badge status-${job.status}">${job.status}</span>
-            </div>
-            <div class="job-body" style="margin-top:12px;">
-                <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
-                <div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Đang chuẩn bị...</div>
-            </div>
-        `;
+        div.innerHTML = `<div class="job-header"><div><div class="job-title" style="font-weight:700;">vd-factory-${job.id}+${ddmmyyyy}</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div></div><span class="status-badge status-${job.status}">${job.status}</span></div><div class="job-body" style="margin-top:12px;"><div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div><div style="font-size:0.75rem;color:var(--primary);margin-top:5px;">Đang chuẩn bị...</div></div>`;
         return div;
     }
 
@@ -240,7 +219,6 @@
                 const container = document.getElementById('job-list-container');
                 container.prepend(createJobElement({id: result.job_id, status: 'pending'}));
                 lucide.createIcons();
-                // Nếu danh sách quá dài (hơn 5), xóa bớt cái cuối để đúng phân trang
                 if (container.children.length > 5) container.lastElementChild.remove();
             }
         } catch (error) { alert('Lỗi: ' + error.message); } 
@@ -250,8 +228,7 @@
     echo.channel('jobs').listen('.job.updated', (e) => {
         const job = e.job; 
         let el = document.getElementById(`job-${job.id}`);
-        if (!el) return; // Chỉ cập nhật nếu nó đang ở trang hiện tại
-
+        if (!el) return;
         el.querySelector('.status-badge').className = `status-badge status-${job.status}`;
         el.querySelector('.status-badge').innerText = `${job.status} ${job.status === 'processing' ? job.progress + '%' : ''}`;
         const body = el.querySelector('.job-body');
