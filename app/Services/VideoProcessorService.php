@@ -23,12 +23,12 @@ class VideoProcessorService
     {
         try {
             $this->updateProgress(10, 'Đang tải tài nguyên...');
-            $videoPaths = $this->downloadResources($this->job->video_urls, 'v');
-            $audioPaths = $this->downloadResources($this->job->audio_urls, 'a');
+            $videoPaths = $this->downloadResources($this->job->video_sources, 'v');
+            $audioPaths = $this->downloadResources($this->job->audio_url, 'a');
             
             $bgMusicPath = null;
-            if (!empty($this->job->bg_music_urls)) {
-                $bgPaths = $this->downloadResources($this->job->bg_music_urls, 'bg');
+            if (!empty($this->job->bg_music_url)) {
+                $bgPaths = $this->downloadResources($this->job->bg_music_url, 'bg');
                 $bgMusicPath = $this->concatAudio($bgPaths, 'bg_final.mp3');
             }
 

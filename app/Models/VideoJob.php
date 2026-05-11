@@ -28,4 +28,11 @@ class VideoJob extends Model
         'video_sources' => 'array',
         'settings' => 'array',
     ];
+
+    protected $attributes = [
+        'video_sources' => '[]',
+        'audio_url' => '[]',
+        'bg_music_url' => '[]',
+        'settings' => '{"format":"9:16","subtitles":true,"volume_audio":100,"volume_video":0,"volume_music":20}',
+    ];
 }
