@@ -82,7 +82,8 @@
         .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.4s ease; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
-        .modal-close { position: absolute; top: 20px; right: 20px; color: var(--text-muted); cursor: pointer; }
+        .modal-content { background: var(--card-bg); width: 90%; max-width: 600px; padding: 20px; border-radius: 24px; position: relative; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .modal-close { position: absolute; top: 15px; right: 15px; color: var(--text-muted); cursor: pointer; z-index: 10; }
         .api-block { background: #000; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 0.85rem; margin: 10px 0; border: 1px solid var(--border); overflow-x: auto; color: #34d399; }
 
         .pagination-container { margin-top: auto; padding: 20px 0; display: flex; justify-content: center; gap: 10px; }
@@ -343,9 +344,11 @@
         }
     }
 
-    echo.channel('jobs').listen('.job.updated', (e) => {
-        updateJobUI(e.job);
-    });
+    if (typeof echo !== 'undefined') {
+        echo.channel('jobs').listen('.job.updated', (e) => {
+            updateJobUI(e.job);
+        });
+    }
 
     function playVideo(url) { document.getElementById('main-player').src = url; openModal('video-modal'); }
     function deleteJob(id) { if(confirm('Hủy/Xóa video này?')) fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } }).then(() => location.reload()); }

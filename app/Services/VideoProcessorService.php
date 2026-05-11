@@ -230,7 +230,7 @@ class VideoProcessorService
                " -map " . escapeshellarg("[{$lastV}]") . 
                " -map " . escapeshellarg("[{$lastA}]") . 
                " -t " . escapeshellarg($duration) . 
-               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -shortest " . escapeshellarg($outputPath) . " 2>&1";
+               " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
         exec($cmd, $outputArray, $returnCode);
