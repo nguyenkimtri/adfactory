@@ -22,6 +22,7 @@ class VideoProcessorService
     public function process()
     {
         try {
+            $this->job->update(['status' => 'processing', 'progress' => 5, 'status_message' => 'Bắt đầu xử lý...']);
             $this->updateProgress(10, 'Đang tải tài nguyên...');
             // Đảm bảo lấy đúng tên cột từ Database
             $videoPaths = $this->downloadResources($this->job->video_sources ?? [], 'v');
@@ -225,7 +226,7 @@ class VideoProcessorService
             $filterStr = implode(';', $vFilters);
             $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
                    " -map " . escapeshellarg("[{$lastV}]") . " -map 1:a -t " . escapeshellarg($duration) . 
-                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
+                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a libmp3lame -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         } else {
             // Sử dụng bộ trộn amix nếu có nhiều nguồn (nhạc nền, tiếng video...)
             $aFilters[] = implode('', $mixing) . "amix=inputs={$audioInputs}:duration=first:dropout_transition=0[amixout]";
@@ -233,7 +234,7 @@ class VideoProcessorService
             $filterStr = implode(';', array_merge($vFilters, $aFilters));
             $cmd = "ffmpeg -hide_banner -y " . implode(' ', $inputs) . " -filter_complex " . escapeshellarg($filterStr) . 
                    " -map " . escapeshellarg("[{$lastV}]") . " -map " . escapeshellarg("[{$lastA}]") . " -t " . escapeshellarg($duration) . 
-                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
+                   " -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a libmp3lame -b:a 192k -ac 2 -ar 44100 -shortest " . escapeshellarg($outputPath) . " 2>&1";
         }
         
         Log::info("Job {$this->job->id} Executing: " . $cmd);
