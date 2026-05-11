@@ -177,29 +177,29 @@
 </div>
 
 <div id="api-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('api-modal')"><i data-lucide="x"></i></div><h3>API Docs</h3><pre><code>POST {{ url('/api/video/generate') }}</code></pre></div></div>
-<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>WebSocket kết nối qua Subdomain wss.phung.vn (Cổng 443 Tunnel).</p></div></div>
+<div id="guide-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeModal('guide-modal')"><i data-lucide="x"></i></div><h3>Hướng dẫn</h3><p>Đang dùng XHR Polling qua wss.phung.vn để đảm bảo kết nối 100%.</p></div></div>
 <div id="video-modal" class="modal"><div class="modal-content"><div class="video-close-btn" onclick="closeVideoModal()"><i data-lucide="x"></i></div><video id="main-player" controls autoplay style="width:100%;border-radius:12px;"></video></div></div>
 
 <script>
     lucide.createIcons();
 
-    // SỬA LỖI: Dùng Subdomain riêng (wss.phung.vn) để xuyên qua Cloudflare Tunnel qua cổng 443 mặc định
+    // CHIẾN THUẬT CUỐI: Ép dùng Polling để xuyên qua mọi lớp bảo mật/firewall của Cloudflare
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
-        wsHost: 'wss.phung.vn', // Subdomain bạn vừa tạo trong Cloudflare
+        wsHost: 'wss.phung.vn',
         wsPort: 443,
         wssPort: 443,
         forceTLS: true,
         cluster: 'mt1',
         disableStats: true,
-        enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'],
+        enabledTransports: ['xhr_polling', 'xhr_streaming'], // ÉP DÙNG POLLING
     });
 
     const wsStatus = document.getElementById('ws-status');
     if (echo.connector && echo.connector.pusher) {
         echo.connector.pusher.connection.bind('connected', () => {
-            wsStatus.className = 'ws-connected'; wsStatus.innerText = '● Realtime: Connected';
+            wsStatus.className = 'ws-connected'; wsStatus.innerText = '● Realtime: Connected (Polling Mode)';
         });
         echo.connector.pusher.connection.bind('disconnected', () => {
             wsStatus.className = 'ws-disconnected'; wsStatus.innerText = '● Realtime: Disconnected';
