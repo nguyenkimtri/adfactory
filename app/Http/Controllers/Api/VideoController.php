@@ -13,11 +13,24 @@ class VideoController extends Controller
     {
         $data = $request->all();
         
-        // Tự động tách các dòng thành mảng cho mọi loại tài nguyên
+        // Tự động tách các dòng và lọc lấy URL (hỗ trợ trường hợp copy kèm text của TikTok/Douyin)
         $fieldsToSplit = ['video_sources', 'audio_url', 'bg_music_url'];
         foreach ($fieldsToSplit as $field) {
             if (isset($data[$field]) && is_string($data[$field])) {
-                $data[$field] = array_values(array_filter(array_map('trim', explode("\n", $data[$field]))));
+                $lines = explode("\n", $data[$field]);
+                $urls = [];
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (empty($line)) continue;
+                    
+                    // Tìm URL bắt đầu bằng http/https trong đoạn text
+                    if (preg_match('/(https?:\/\/[^\s]+)/', $line, $matches)) {
+                        $urls[] = $matches[1];
+                    } else {
+                        $urls[] = $line;
+                    }
+                }
+                $data[$field] = array_values(array_filter($urls));
             }
         }
 
