@@ -103,19 +103,45 @@ class VideoProcessorService
     protected function downloadFile($url, $name)
     {
         $path = "{$this->tempDir}/{$name}";
-        // Lệnh yt-dlp thông minh hơn: Cố gắng lấy video+audio, nếu không được thì lấy cái tốt nhất có sẵn
-        $cmd = "yt-dlp -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+        
+        // Tự động xác định đường dẫn yt-dlp: ưu tiên file local nếu trên Windows
+        $ytDlp = 'yt-dlp';
+        if (PHP_OS_FAMILY === 'Windows') {
+            $localExe = base_path('yt-dlp.exe');
+            $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
+        }
+
+        // Cấu hình tối ưu để vượt qua cơ chế chặn của Douyin, TikTok, YouTube
+        $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+        $options = [
+            "--no-playlist",
+            "--no-check-certificates",
+            "--no-warnings",
+            "--ignore-errors",
+            "--user-agent " . escapeshellarg($userAgent),
+            "--add-header \"Accept-Language:vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7\"",
+            "--add-header \"Referer:https://www.google.com/\"",
+        ];
+        $flags = implode(' ', $options);
+
+        // Bước 1: Thử tải chất lượng tốt nhất có thể gộp thành mp4
+        $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         shell_exec($cmd);
         
         $files = glob("{$path}.*");
-        // Nếu không có tệp nào, thử tải lại với chế độ đơn giản nhất
+        
+        // Bước 2: Nếu thất bại (có thể do link trực tiếp hoặc định dạng lạ), thử tải với chế độ đơn giản nhất
         if (empty($files)) {
-            $cmdSimple = "yt-dlp -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+            $cmdSimple = "{$ytDlp} {$flags} -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
             shell_exec($cmdSimple);
             $files = glob("{$path}.*");
         }
 
-        if (empty($files)) throw new \Exception("Không thể tải file: {$url}");
+        if (empty($files)) {
+            Log::error("Không thể tải tài nguyên từ: {$url}");
+            throw new \Exception("Lỗi tải file: Hệ thống không hỗ trợ link này hoặc bị chặn (URL: {$url}).");
+        }
+        
         return $files[0];
     }
 
