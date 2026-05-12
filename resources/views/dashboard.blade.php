@@ -241,26 +241,33 @@
 
 <script>
     lucide.createIcons();
-    const echo = new Echo({
-        broadcaster: 'pusher',
-        key: '{{ config('reverb.apps.apps.0.key') }}',
-        wsHost: 'wss.phung.vn', 
-        wsPort: 443, 
-        wssPort: 443, 
-        forceTLS: true, 
-        cluster: 'mt1', 
-        disableStats: true,
-        enabledTransports: ['ws', 'wss'],
-    });
-
     const wsStatus = document.getElementById('ws-status');
-    setInterval(() => {
-        if (echo.connector && echo.connector.pusher) {
-            const state = echo.connector.pusher.connection.state;
-            wsStatus.className = 'ws-' + state;
-            wsStatus.innerText = '● Realtime: ' + state.charAt(0).toUpperCase() + state.slice(1);
-        }
-    }, 1000);
+    if (typeof Echo !== 'undefined') {
+        const echo = new Echo({
+            broadcaster: 'pusher',
+            key: '{{ config('reverb.apps.apps.0.key') }}',
+            wsHost: 'wss.phung.vn', 
+            wsPort: 443, 
+            wssPort: 443, 
+            forceTLS: true, 
+            cluster: 'mt1', 
+            disableStats: true,
+            enabledTransports: ['ws', 'wss'],
+        });
+
+        setInterval(() => {
+            if (echo.connector && echo.connector.pusher) {
+                const state = echo.connector.pusher.connection.state;
+                wsStatus.className = 'ws-' + state;
+                wsStatus.innerText = '● Realtime: ' + state.charAt(0).toUpperCase() + state.slice(1);
+            }
+        }, 1000);
+
+        echo.channel('jobs').listen('.job.updated', (e) => {
+            console.log("Realtime Update:", e.job);
+            updateJobUI(e.job);
+        });
+    }
 
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; if(id === 'video-modal') document.getElementById('main-player').pause(); }
@@ -271,7 +278,22 @@
         div.className = 'job-item'; div.id = `job-${job.id}`;
         const now = new Date();
         const ddmmyyyy = `${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}`;
-        div.innerHTML = `<div class="job-header"><div><div class="job-title" style="font-weight:700;">vd-factory-${job.id}${ddmmyyyy}</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Vừa xong</div></div><span class="status-badge status-${job.status}">${job.status}</span></div><div class="job-body" style="margin-top:12px;"><div class="progress-bar"><div class="progress-fill" style="width: 0%"></div><div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;"><div style="font-size:0.75rem;color:var(--primary);">Đang xếp hàng...</div><button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button></div></div>`;
+        div.innerHTML = `
+            <div class="job-header">
+                <div>
+                    <div class="job-title" style="font-weight:700;">vd-factory-${job.id}${ddmmyyyy}</div>
+                    <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;"><i data-lucide="clock" size="12"></i> Đang khởi tạo...</div>
+                </div>
+                <span class="status-badge status-pending">pending</span>
+            </div>
+            <div class="job-body" style="margin-top:12px;">
+                <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                    <div class="status-msg" style="font-size:0.75rem;color:var(--primary);">Đang xếp hàng...</div>
+                    <button onclick="deleteJob('${job.id}')" class="btn-action btn-cancel"><i data-lucide="trash-2" size="12"></i> Hủy</button>
+                </div>
+            </div>
+        `;
         return div;
     }
 
