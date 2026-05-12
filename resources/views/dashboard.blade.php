@@ -244,8 +244,13 @@
     const echo = new Echo({
         broadcaster: 'pusher',
         key: '{{ config('reverb.apps.apps.0.key') }}',
-        wsHost: 'wss.phung.vn', wsPort: 443, wssPort: 443, forceTLS: true, cluster: 'mt1', disableStats: true,
-        enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling'],
+        wsHost: 'wss.phung.vn', 
+        wsPort: 443, 
+        wssPort: 443, 
+        forceTLS: true, 
+        cluster: 'mt1', 
+        disableStats: true,
+        enabledTransports: ['ws', 'wss'],
     });
 
     const wsStatus = document.getElementById('ws-status');

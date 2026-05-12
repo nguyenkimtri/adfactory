@@ -111,7 +111,7 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        // Cấu hình tối ưu để vượt qua cơ chế chặn của Douyin, TikTok, YouTube
+        // Tăng cường cấu hình để vượt qua cơ chế chặn của Douyin, TikTok
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
         $options = [
             "--no-playlist",
@@ -119,20 +119,22 @@ class VideoProcessorService
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
-            "--add-header \"Accept-Language:vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7\"",
-            "--add-header \"Referer:https://www.google.com/\"",
+            "--add-header \"Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7\"",
+            "--add-header \"Referer: https://www.google.com/\"",
+            "--concurrent-fragments 5",
+            "--buffer-size 16K"
         ];
         $flags = implode(' ', $options);
 
-        // Bước 1: Thử tải chất lượng tốt nhất có thể gộp thành mp4
+        // Bước 1: Thử tải chất lượng tốt nhất
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         shell_exec($cmd);
         
         $files = glob("{$path}.*");
         
-        // Bước 2: Nếu thất bại (có thể do link trực tiếp hoặc định dạng lạ), thử tải với chế độ đơn giản nhất
+        // Bước 2: Nếu thất bại, thử chế độ cực kỳ đơn giản (thường giúp vượt qua các link bị mã hóa mạnh)
         if (empty($files)) {
-            $cmdSimple = "{$ytDlp} {$flags} -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+            $cmdSimple = "{$ytDlp} {$flags} -f \"b\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
             shell_exec($cmdSimple);
             $files = glob("{$path}.*");
         }
