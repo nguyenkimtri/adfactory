@@ -131,7 +131,9 @@ class VideoProcessorService
         ];
 
         if ($customCookie && (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false)) {
-            $options[] = "--add-header \"Cookie: " . str_replace('"', '\"', $customCookie) . "\"";
+            // Loại bỏ dấu ngoặc kép bọc ngoài nếu có để tránh lỗi lệnh shell
+            $cleanCookie = trim($customCookie, '"\'');
+            $options[] = "--add-header \"Cookie: " . str_replace('"', '', $cleanCookie) . "\"";
         }
         $flags = implode(' ', $options);
 
@@ -140,9 +142,10 @@ class VideoProcessorService
         
         $files = glob("{$path}.*");
         
-        // Bước 2: Nếu yt-dlp thất bại (thường do thiếu Cookie), dùng API cứu hộ (TikWM)
+        // Bước 2: Nếu yt-dlp thất bại, dùng API cứu hộ (TikWM)
         if (empty($files) && (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false)) {
-            Log::info("Yt-dlp failed, attempting 3rd-party fallback for: {$url}");
+            Log::warning("Yt-dlp failed for {$url}. Output: " . implode("\n", array_slice($output, -3)));
+            Log::info("Attempting TikWM fallback for: {$url}");
             if ($this->downloadFromThirdParty($url, $path)) {
                 $files = glob("{$path}.*");
             }
@@ -151,7 +154,7 @@ class VideoProcessorService
         if (empty($files)) {
             $errorLog = implode("\n", array_slice($output, -5));
             Log::error("Download failed final: {$url}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Douyin chặn hoặc Cookie hết hạn. (URL: {$url}).");
+            throw new \Exception("Lỗi tải file: Douyin chặn hoặc Cookie hết hạn. Hãy kiểm tra lại file .env.");
         }
         
         return $files[0];
@@ -160,32 +163,57 @@ class VideoProcessorService
     protected function downloadFromThirdParty($url, $path)
     {
         try {
-            // Sử dụng TikWM API (Hỗ trợ cả Douyin và TikTok)
-            $apiUrl = "https://www.tikwm.com/api/?url=" . urlencode($url);
+            $cookieJar = tempnam(sys_get_temp_dir(), 'cookie');
+            $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+            // Bước 1: Khởi tạo phiên (Check)
+            $ch = curl_init("https://unduhtiktok.com/wp-content/plugins/app-snaptik/api/check.php");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJar);
+            curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+            curl_setopt($ch, CURLOPT_REFERER, "https://unduhtiktok.com/vi/douyin/");
+            curl_exec($ch);
+            curl_close($ch);
+
+            // Bước 2: Gọi API lấy link video
+            $apiUrl = "https://unduhtiktok.com/wp-content/plugins/app-snaptik/api/tiktok.php";
+            $postData = json_encode(['url' => $url]);
+            
             $ch = curl_init($apiUrl);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJar);
+            curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+            curl_setopt($ch, CURLOPT_REFERER, "https://unduhtiktok.com/vi/douyin/");
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            
             $response = curl_exec($ch);
             curl_close($ch);
-            
+            @unlink($cookieJar);
+
             $data = json_decode($response, true);
-            if ($data && isset($data['code']) && $data['code'] === 0) {
-                // Ưu tiên bản không logo (hdplay hoặc play)
-                $videoUrl = $data['data']['hdplay'] ?? $data['data']['play'] ?? null;
-                if ($videoUrl) {
-                    if (strpos($videoUrl, 'http') !== 0) $videoUrl = "https://www.tikwm.com" . $videoUrl;
-                    
-                    $videoData = file_get_contents($videoUrl);
-                    if ($videoData) {
-                        file_put_contents($path . ".mp4", $videoData);
-                        return true;
-                    }
+            if ($data && isset($data['video'])) {
+                $videoUrl = $data['video'];
+                
+                // Tải video về
+                $ch = curl_init($videoUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+                $videoData = curl_exec($ch);
+                curl_close($ch);
+
+                if ($videoData) {
+                    file_put_contents($path . ".mp4", $videoData);
+                    return true;
                 }
             }
+            
+            Log::error("UnduhTikTok Fallback failed for {$url}. Response: " . substr($response, 0, 200));
             return false;
         } catch (\Exception $e) {
-            Log::error("ThirdParty Download Error: " . $e->getMessage());
+            Log::error("UnduhTikTok Error: " . $e->getMessage());
             return false;
         }
     }
