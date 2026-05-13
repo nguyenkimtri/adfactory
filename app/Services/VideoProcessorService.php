@@ -141,19 +141,21 @@ class VideoProcessorService
         }
         $flags = implode(' ', $options);
 
-        // Bước 3: Thực hiện tải video gốc (thường là không logo)
+        // Bước 3: Thực hiện tải video gốc
+        $errorLogPath = public_path('yt_dlp_error.txt');
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         exec($cmd, $output, $result);
         
         $files = glob("{$path}.*");
-        @unlink($cookieFilePath);
-
+        
         if (empty($files)) {
-            $errorLog = implode("\n", array_slice($output, -10));
-            Log::error("yt-dlp download failed: {$url}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: yt-dlp không thể tải video. Hãy kiểm tra lại Cookie trong .env (có thể đã hết hạn).");
+            $fullLog = implode("\n", $output);
+            file_put_contents($errorLogPath, "URL: {$url}\n\nLOG:\n" . $fullLog);
+            Log::error("yt-dlp download failed. Full log saved to public/yt_dlp_error.txt");
+            throw new \Exception("Lỗi tải file: yt-dlp không thể tải video. Hãy xem chi tiết tại: " . url('yt_dlp_error.txt'));
         }
         
+        @unlink($cookieFilePath);
         return $files[0];
     }
 
