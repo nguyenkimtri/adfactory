@@ -166,7 +166,7 @@ class VideoProcessorService
             $cookieJar = tempnam(sys_get_temp_dir(), 'cookie');
             $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-            // Bước 1: Khởi tạo phiên (Check)
+            // Bước 1: Khởi tạo phiên
             $ch = curl_init("https://unduhtiktok.com/wp-content/plugins/app-snaptik/api/check.php");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJar);
@@ -201,12 +201,15 @@ class VideoProcessorService
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 60);
                 $videoData = curl_exec($ch);
                 curl_close($ch);
 
-                if ($videoData) {
+                if ($videoData && strlen($videoData) > 1000) { // Đảm bảo file > 1KB
                     file_put_contents($path . ".mp4", $videoData);
                     return true;
+                } else {
+                    Log::error("Video data from UnduhTikTok is empty or too small for {$url}");
                 }
             }
             
@@ -274,20 +277,32 @@ class VideoProcessorService
         $outputPath = "{$this->tempDir}/concat.mp4";
         if (count($paths) === 0) throw new \Exception("Không có video nguồn nào.");
 
+        // Remux lại từng video nguồn để đảm bảo PTS chuẩn (tránh lỗi No such file or directory của concat)
+        $cleanPaths = [];
+        foreach ($paths as $i => $p) {
+            $cleanPath = "{$this->tempDir}/v_clean_{$i}.mp4";
+            shell_exec("ffmpeg -y -i " . escapeshellarg($p) . " -c copy -fflags +genpts " . escapeshellarg($cleanPath) . " 2>&1");
+            $cleanPaths[] = file_exists($cleanPath) ? $cleanPath : $p;
+        }
+
         $res = (($this->job->settings['format'] ?? '9:16') === '9:16') ? '1080:1920' : '1920:1080';
         $inputs = "";
         $filter = "";
-        foreach ($paths as $i => $p) {
+        foreach ($cleanPaths as $i => $p) {
             $inputs .= "-i " . escapeshellarg($p) . " ";
-            // Ép về đúng kích thước và 30fps để video mượt, không bị đứng hình
             $filter .= "[{$i}:v]scale={$res}:force_original_aspect_ratio=increase,crop={$res},fps=30,setpts=PTS-STARTPTS[v{$i}];";
         }
-        $count = count($paths);
+        $count = count($cleanPaths);
         for($i=0;$i<$count;$i++) $filter .= "[v{$i}]";
         $filter .= "concat=n={$count}:v=1:a=0[outv]";
 
-        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast -threads 0 -r 30 \"{$outputPath}\" 2>&1";
-        shell_exec($cmd);
+        $cmd = "ffmpeg -y {$inputs} -filter_complex \"{$filter}\" -map \"[outv]\" -c:v libx264 -preset ultrafast -threads 0 -r 30 -vsync 2 \"{$outputPath}\" 2>&1";
+        $log = shell_exec($cmd);
+        
+        if (!file_exists($outputPath)) {
+            Log::error("FFmpeg concat failed. Log: " . $log);
+            throw new \Exception("Không thể tạo video phông nền (concat.mp4). Lỗi FFmpeg: " . substr($log, -200));
+        }
         
         return $outputPath;
     }
