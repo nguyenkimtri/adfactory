@@ -103,7 +103,6 @@ class VideoProcessorService
     protected function downloadFile($url, $name)
     {
         $path = "{$this->tempDir}/{$name}";
-        $originalUrl = $url;
         
         if (strpos($url, 'v.douyin.com') !== false || strpos($url, 'vt.tiktok.com') !== false) {
             $url = $this->expandUrl($url);
@@ -115,10 +114,11 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        // Tự động tạo file cookie định dạng Netscape từ chuỗi trong .env (Cách tốt nhất cho yt-dlp)
-        $cookieFilePath = "{$this->tempDir}/cookies_netscape.txt";
+        // Bước 1: Tạo file cookies.txt chuẩn Netscape từ JSON trong .env
+        $cookieFilePath = "{$this->tempDir}/cookies.txt";
         $this->generateNetscapeCookies($cookieFilePath);
         
+        // Bước 2: Cấu hình yt-dlp để "giả danh" trình duyệt thật sự
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
         $options = [
             "--no-playlist",
@@ -126,6 +126,8 @@ class VideoProcessorService
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
+            "--add-header \"Accept-Language: vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5\"",
+            "--add-header \"Sec-Ch-Ua-Platform: \\\"Windows\\\"\"",
         ];
 
         if (file_exists($cookieFilePath) && filesize($cookieFilePath) > 10) {
@@ -133,72 +135,20 @@ class VideoProcessorService
         }
         $flags = implode(' ', $options);
 
-        // Bước 1: yt-dlp (Tầng 1)
+        // Bước 3: Thực hiện tải video gốc (thường là không logo)
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         exec($cmd, $output, $result);
-        $files = glob("{$path}.*");
         
-        // Bước 2: Cứu hộ đa tầng (URL Surgery -> Lovetik -> TikWM -> SnapTik)
-        if (empty($files) && (strpos($originalUrl, 'douyin.com') !== false || strpos($originalUrl, 'tiktok.com') !== false)) {
-            Log::info("yt-dlp failed, starting multi-tier rescue for: {$originalUrl}");
-            
-            // Tầng 2: Lovetik (Có đổi playwm -> play)
-            if ($this->downloadFromLovetik($originalUrl, $path)) {
-                $files = glob("{$path}.*");
-            }
-            
-            // Tầng 3: TikWM
-            if (empty($files)) {
-                if ($this->downloadFromTikWM($originalUrl, $path)) {
-                    $files = glob("{$path}.*");
-                }
-            }
-
-            // Tầng 4: SnapTik (Trùm cuối)
-            if (empty($files)) {
-                Log::info("Trying SnapTik fallback for: {$originalUrl}");
-                if ($this->downloadFromSnapTik($originalUrl, $path)) {
-                    $files = glob("{$path}.*");
-                }
-            }
-        }
-
+        $files = glob("{$path}.*");
         @unlink($cookieFilePath);
 
         if (empty($files)) {
-            $errorLog = implode("\n", array_slice($output, -5));
-            Log::error("Download failed final: {$originalUrl}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Douyin chặn quá gắt. Hãy thử lấy lại Cookie mới hoặc kiểm tra lại link.");
+            $errorLog = implode("\n", array_slice($output, -10));
+            Log::error("yt-dlp download failed: {$url}. Log: {$errorLog}");
+            throw new \Exception("Lỗi tải file: yt-dlp không thể tải video. Hãy kiểm tra lại Cookie trong .env (có thể đã hết hạn).");
         }
         
         return $files[0];
-    }
-
-    protected function downloadFromSnapTik($url, $path)
-    {
-        try {
-            $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-            
-            // SnapTik thường yêu cầu lấy token trước, nhưng chúng ta thử qua API trung gian nhanh
-            $apiUrl = "https://api.tikmate.app/api/lookup?url=" . urlencode($url);
-            $ch = curl_init($apiUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
-            $response = curl_exec($ch);
-            curl_close($ch);
-
-            $data = json_decode($response, true);
-            if ($data && isset($data['url'])) {
-                $videoUrl = $data['url'];
-                $videoData = @file_get_contents($videoUrl);
-                if ($videoData && strlen($videoData) > 1000) {
-                    file_put_contents($path . ".mp4", $videoData);
-                    return true;
-                }
-            }
-            return false;
-        } catch (\Exception $e) { return false; }
     }
 
     protected function generateNetscapeCookies($filePath)
@@ -207,12 +157,9 @@ class VideoProcessorService
         if (!$rawCookie) return;
 
         $content = "# Netscape HTTP Cookie File\n";
-        
-        // Kiểm tra xem có phải định dạng JSON không
         $jsonData = json_decode($rawCookie, true);
         
         if (is_array($jsonData)) {
-            // Xử lý định dạng JSON (như bạn vừa gửi)
             foreach ($jsonData as $cookie) {
                 $domain = $cookie['domain'] ?? '.douyin.com';
                 $flag = strpos($domain, '.') === 0 ? 'TRUE' : 'FALSE';
@@ -222,20 +169,18 @@ class VideoProcessorService
                 $name = $cookie['name'] ?? '';
                 $value = $cookie['value'] ?? '';
                 
-                if ($name && $value) {
+                if ($name !== null && $value !== null) {
                     $content .= "{$domain}\t{$flag}\t{$path}\t{$secure}\t{$expiry}\t{$name}\t{$value}\n";
                 }
             }
         } else {
-            // Xử lý định dạng chuỗi thô (Key=Value; Key2=Value2)
+            // Hỗ trợ chuỗi cookie thô nếu không phải JSON
             $cookies = explode(';', $rawCookie);
             foreach ($cookies as $cookie) {
                 $parts = explode('=', trim($cookie), 2);
                 if (count($parts) == 2) {
-                    $name = $parts[0];
-                    $value = $parts[1];
                     $domain = ".douyin.com";
-                    $content .= "{$domain}\tTRUE\t/\tFALSE\t" . (time() + 86400 * 30) . "\t{$name}\t{$value}\n";
+                    $content .= "{$domain}\tTRUE\t/\tFALSE\t" . (time() + 86400 * 30) . "\t{$parts[0]}\t{$parts[1]}\n";
                 }
             }
         }
