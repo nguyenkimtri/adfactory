@@ -170,20 +170,43 @@ class VideoProcessorService
             $html = curl_exec($ch);
             curl_close($ch);
 
-            // Tìm thẻ RENDER_DATA
+            if (empty($html)) return null;
+
+            // Cách 1: Tìm trong RENDER_DATA (Phổ biến nhất)
             if (preg_match('/<script id="RENDER_DATA" type="application\/json">(.*?)<\/script>/s', $html, $matches)) {
-                $jsonData = json_decode(urldecode($matches[1]), true);
-                // Cấu trúc Douyin thường nằm sâu trong aweme -> detail -> video
-                // Chúng ta sẽ tìm đệ quy hoặc theo đường dẫn chuẩn
-                foreach ($jsonData as $key => $item) {
-                    if (isset($item['aweme']['detail']['video']['play_addr']['url_list'][0])) {
-                        $playUrl = $item['aweme']['detail']['video']['play_addr']['url_list'][0];
-                        if (strpos($playUrl, 'http') === 0) return $playUrl;
+                $decoded = urldecode($matches[1]);
+                $jsonData = json_decode($decoded, true);
+                if ($jsonData) {
+                    $playUrl = $this->searchRecursive($jsonData, 'play_addr');
+                    if ($playUrl && is_array($playUrl) && isset($playUrl['url_list'][0])) {
+                        return $playUrl['url_list'][0];
                     }
                 }
             }
+
+            // Cách 2: Tìm diện rộng bằng Regex
+            if (preg_match('/"(https:\/\/v[0-9]+-dy-?[a-z]*\.adwm\.com\/[^"]+)"/i', $html, $matches)) {
+                return str_replace('\\u0026', '&', $matches[1]);
+            }
+            
+            if (preg_match('/"(https:\/\/aweme\.snssdk\.com\/aweme\/v1\/play\/?[^"]+)"/i', $html, $matches)) {
+                return str_replace('\\u0026', '&', $matches[1]);
+            }
+
             return null;
         } catch (\Exception $e) { return null; }
+    }
+
+    protected function searchRecursive($array, $key) {
+        if (!is_array($array)) return null;
+        if (array_key_exists($key, $array)) return $array[$key];
+        foreach ($array as $value) {
+            if (is_array($value)) {
+                $result = $this->searchRecursive($value, $key);
+                if ($result) return $result;
+            }
+        }
+        return null;
     }
 
     protected function generateNetscapeCookies($filePath)
