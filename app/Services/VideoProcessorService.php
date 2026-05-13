@@ -103,7 +103,7 @@ class VideoProcessorService
     protected function downloadFile($url, $name)
     {
         $path = "{$this->tempDir}/{$name}";
-        $originalUrl = $url; 
+        $originalUrl = $url;
         
         if (strpos($url, 'v.douyin.com') !== false || strpos($url, 'vt.tiktok.com') !== false) {
             $url = $this->expandUrl($url);
@@ -115,7 +115,10 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        $customCookie = env('DOUYIN_COOKIE');
+        // Tự động tạo file cookie định dạng Netscape từ chuỗi trong .env (Cách tốt nhất cho yt-dlp)
+        $cookieFilePath = "{$this->tempDir}/cookies_netscape.txt";
+        $this->generateNetscapeCookies($cookieFilePath);
+        
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
         $options = [
             "--no-playlist",
@@ -123,53 +126,69 @@ class VideoProcessorService
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
-            "--add-header \"Referer: https://www.douyin.com/\"",
         ];
 
-        if ($customCookie && (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false)) {
-            $cleanCookie = trim($customCookie, '"\'');
-            $options[] = "--add-header \"Cookie: " . str_replace('"', '', $cleanCookie) . "\"";
+        if (file_exists($cookieFilePath) && filesize($cookieFilePath) > 10) {
+            $options[] = "--cookies " . escapeshellarg($cookieFilePath);
         }
         $flags = implode(' ', $options);
 
-        // Lớp 1: yt-dlp
+        // Bước 1: yt-dlp (Tầng 1)
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         exec($cmd, $output, $result);
         $files = glob("{$path}.*");
         
-        // Lớp 2 & 3: Các dịch vụ cứu hộ
+        // Bước 2: Cứu hộ bằng đề xuất của bạn (Thay playwm -> play) kết hợp Lovetik/TikWM
         if (empty($files) && (strpos($originalUrl, 'douyin.com') !== false || strpos($originalUrl, 'tiktok.com') !== false)) {
-            Log::info("Yt-dlp failed, trying rescue layers for: {$originalUrl}");
+            Log::info("yt-dlp failed, trying URL Surgery & Fallbacks for: {$originalUrl}");
             
-            // Thử Lovetik (Lớp 2 mới)
+            // Thử Lovetik và áp dụng kỹ thuật đổi playwm -> play nếu cần
             if ($this->downloadFromLovetik($originalUrl, $path)) {
                 $files = glob("{$path}.*");
             }
             
-            // Nếu vẫn thất bại, thử TikWM (Lớp 3 dự phòng)
             if (empty($files)) {
-                Log::info("Lovetik failed, trying TikWM fallback for: {$originalUrl}");
                 if ($this->downloadFromTikWM($originalUrl, $path)) {
                     $files = glob("{$path}.*");
                 }
             }
         }
 
+        @unlink($cookieFilePath);
+
         if (empty($files)) {
             $errorLog = implode("\n", array_slice($output, -5));
             Log::error("Download failed final: {$originalUrl}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Cả 3 lớp phòng thủ đều bị Douyin chặn. Link có thể ở chế độ riêng tư hoặc Cookie đã hỏng.");
+            throw new \Exception("Lỗi tải file: Douyin chặn quá gắt. Hãy thử lấy lại Cookie mới từ trình duyệt.");
         }
         
         return $files[0];
+    }
+
+    protected function generateNetscapeCookies($filePath)
+    {
+        $rawCookie = env('DOUYIN_COOKIE');
+        if (!$rawCookie) return;
+
+        $cookies = explode(';', $rawCookie);
+        $content = "# Netscape HTTP Cookie File\n";
+        foreach ($cookies as $cookie) {
+            $parts = explode('=', trim($cookie), 2);
+            if (count($parts) == 2) {
+                $name = $parts[0];
+                $value = $parts[1];
+                $domain = ".douyin.com";
+                // Định dạng: domain, TRUE/FALSE, path, secure, expiration, name, value
+                $content .= "{$domain}\tTRUE\t/\tFALSE\t" . (time() + 86400 * 30) . "\t{$name}\t{$value}\n";
+            }
+        }
+        file_put_contents($filePath, $content);
     }
 
     protected function downloadFromLovetik($url, $path)
     {
         try {
             $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-            
-            // Bước 1: Gửi link lấy kết quả
             $ch = curl_init("https://lovetik.com/api/ajax/search");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
@@ -182,7 +201,11 @@ class VideoProcessorService
             if ($data && isset($data['links'][0]['a'])) {
                 $videoUrl = $data['links'][0]['a'];
                 
-                // Tải video bằng CURL để vượt rào Referer/Cookie
+                // ÁP DỤNG ĐỀ XUẤT: Thay playwm -> play
+                if (strpos($videoUrl, 'playwm') !== false) {
+                    $videoUrl = str_replace('playwm', 'play', $videoUrl);
+                }
+
                 $ch = curl_init($videoUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
