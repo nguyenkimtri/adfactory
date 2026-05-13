@@ -126,12 +126,25 @@ class VideoProcessorService
         
         // Bước 2: Cấu hình yt-dlp để "giả danh" trình duyệt thật sự
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+        
+        // KÍCH HOẠT COOKIE (Cookie Awakening): Ghé thăm trang video một lần bằng CURL để "làm tươi" phiên làm việc
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFilePath);
+        curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_exec($ch);
+        curl_close($ch);
+
         $options = [
             "--no-playlist",
             "--no-check-certificates",
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
+            "--add-header \"Referer: https://www.douyin.com/\"",
+            "--add-header \"Origin: https://www.douyin.com\"",
             "--add-header \"Accept-Language: vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5\"",
             "--add-header \"Sec-Ch-Ua-Platform: \\\"Windows\\\"\"",
         ];
