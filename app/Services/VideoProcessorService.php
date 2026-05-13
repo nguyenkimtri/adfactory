@@ -104,14 +104,13 @@ class VideoProcessorService
     {
         $path = "{$this->tempDir}/{$name}";
         
-        // Giải mã và làm sạch link (v.douyin.com -> www.douyin.com/video/ID)
+        // Giải mã và làm sạch link
         if (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false) {
             $url = $this->expandUrl($url);
-            // Làm sạch link: giữ lại phần ID, bỏ các tham số rác phía sau (?)
             if (strpos($url, '?') !== false) {
                 $url = explode('?', $url)[0];
             }
-            Log::info("URL expanded and cleaned: " . $url);
+            Log::info("URL expanded: " . $url);
         }
 
         $ytDlp = 'yt-dlp';
@@ -120,22 +119,13 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        // Bước 1: Tạo file cookies.txt chuẩn Netscape từ JSON trong .env
         $cookieFilePath = "{$this->tempDir}/cookies.txt";
         $this->generateNetscapeCookies($cookieFilePath);
-        
-        // Bước 2: Cấu hình yt-dlp để "giả danh" trình duyệt thật sự
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
         
-        // KÍCH HOẠT COOKIE (Cookie Awakening): Ghé thăm trang video một lần bằng CURL để "làm tươi" phiên làm việc
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFilePath);
-        curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_exec($ch);
-        curl_close($ch);
+        // CHIÊU CUỐI: Tự trích xuất link video từ mã nguồn (Bypass Fresh Cookies)
+        $directUrl = $this->extractDirectUrlManual($url, $cookieFilePath, $userAgent);
+        $finalUrl = $directUrl ?: $url;
 
         $options = [
             "--no-playlist",
@@ -144,9 +134,6 @@ class VideoProcessorService
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
             "--add-header \"Referer: https://www.douyin.com/\"",
-            "--add-header \"Origin: https://www.douyin.com\"",
-            "--add-header \"Accept-Language: vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5\"",
-            "--add-header \"Sec-Ch-Ua-Platform: \\\"Windows\\\"\"",
         ];
 
         if (file_exists($cookieFilePath) && filesize($cookieFilePath) > 10) {
@@ -154,22 +141,49 @@ class VideoProcessorService
         }
         $flags = implode(' ', $options);
 
-        // Bước 3: Thực hiện tải video gốc
         $errorLogPath = public_path('yt_dlp_error.txt');
-        $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+        $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($finalUrl) . " 2>&1";
         exec($cmd, $output, $result);
         
         $files = glob("{$path}.*");
         
         if (empty($files)) {
             $fullLog = implode("\n", $output);
-            file_put_contents($errorLogPath, "URL: {$url}\n\nLOG:\n" . $fullLog);
+            file_put_contents($errorLogPath, "URL: {$finalUrl}\n\nLOG:\n" . $fullLog);
             Log::error("yt-dlp download failed. Full log saved to public/yt_dlp_error.txt");
-            throw new \Exception("Lỗi tải file: yt-dlp không thể tải video. Hãy xem chi tiết tại: " . url('yt_dlp_error.txt'));
+            throw new \Exception("Lỗi tải file: Douyin chặn quá gắt. Hãy thử lấy lại Cookie mới. Chi tiết: " . url('yt_dlp_error.txt'));
         }
         
         @unlink($cookieFilePath);
         return $files[0];
+    }
+
+    protected function extractDirectUrlManual($url, $cookiePath, $userAgent)
+    {
+        try {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookiePath);
+            curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            $html = curl_exec($ch);
+            curl_close($ch);
+
+            // Tìm thẻ RENDER_DATA
+            if (preg_match('/<script id="RENDER_DATA" type="application\/json">(.*?)<\/script>/s', $html, $matches)) {
+                $jsonData = json_decode(urldecode($matches[1]), true);
+                // Cấu trúc Douyin thường nằm sâu trong aweme -> detail -> video
+                // Chúng ta sẽ tìm đệ quy hoặc theo đường dẫn chuẩn
+                foreach ($jsonData as $key => $item) {
+                    if (isset($item['aweme']['detail']['video']['play_addr']['url_list'][0])) {
+                        $playUrl = $item['aweme']['detail']['video']['play_addr']['url_list'][0];
+                        if (strpos($playUrl, 'http') === 0) return $playUrl;
+                    }
+                }
+            }
+            return null;
+        } catch (\Exception $e) { return null; }
     }
 
     protected function generateNetscapeCookies($filePath)
