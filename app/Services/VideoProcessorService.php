@@ -141,12 +141,14 @@ class VideoProcessorService
         if (empty($files) && (strpos($originalUrl, 'douyin.com') !== false || strpos($originalUrl, 'tiktok.com') !== false)) {
             Log::info("Yt-dlp failed, trying rescue layers for: {$originalUrl}");
             
-            if ($this->downloadFromUnduh($originalUrl, $path)) {
+            // Thử Lovetik (Lớp 2 mới)
+            if ($this->downloadFromLovetik($originalUrl, $path)) {
                 $files = glob("{$path}.*");
             }
             
+            // Nếu vẫn thất bại, thử TikWM (Lớp 3 dự phòng)
             if (empty($files)) {
-                Log::info("Unduh failed, trying TikWM fallback for: {$originalUrl}");
+                Log::info("Lovetik failed, trying TikWM fallback for: {$originalUrl}");
                 if ($this->downloadFromTikWM($originalUrl, $path)) {
                     $files = glob("{$path}.*");
                 }
@@ -156,41 +158,39 @@ class VideoProcessorService
         if (empty($files)) {
             $errorLog = implode("\n", array_slice($output, -5));
             Log::error("Download failed final: {$originalUrl}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Douyin chặn cả 3 lớp phòng thủ. Hãy kiểm tra lại link hoặc Cookie.");
+            throw new \Exception("Lỗi tải file: Cả 3 lớp phòng thủ đều bị Douyin chặn. Link có thể ở chế độ riêng tư hoặc Cookie đã hỏng.");
         }
         
         return $files[0];
     }
 
-    protected function downloadFromUnduh($url, $path)
+    protected function downloadFromLovetik($url, $path)
     {
         try {
-            $cookieJar = tempnam(sys_get_temp_dir(), 'cookie');
             $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
             
-            $ch = curl_init("https://unduhtiktok.com/wp-content/plugins/app-snaptik/api/check.php");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJar);
-            curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
-            curl_exec($ch);
-            curl_close($ch);
-
-            $apiUrl = "https://unduhtiktok.com/wp-content/plugins/app-snaptik/api/tiktok.php";
-            $postData = json_encode(['url' => $url]);
-            $ch = curl_init($apiUrl);
+            // Bước 1: Gửi link lấy kết quả
+            $ch = curl_init("https://lovetik.com/api/ajax/search");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJar);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(['query' => $url]));
             curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
             $response = curl_exec($ch);
             curl_close($ch);
-            @unlink($cookieJar);
 
             $data = json_decode($response, true);
-            if ($data && isset($data['video'])) {
-                $videoData = @file_get_contents($data['video']);
+            if ($data && isset($data['links'][0]['a'])) {
+                $videoUrl = $data['links'][0]['a'];
+                
+                // Tải video bằng CURL để vượt rào Referer/Cookie
+                $ch = curl_init($videoUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                $videoData = curl_exec($ch);
+                curl_close($ch);
+
                 if ($videoData && strlen($videoData) > 1000) {
                     file_put_contents($path . ".mp4", $videoData);
                     return true;
