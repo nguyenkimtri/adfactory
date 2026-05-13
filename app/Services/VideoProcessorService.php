@@ -104,25 +104,27 @@ class VideoProcessorService
     {
         $path = "{$this->tempDir}/{$name}";
         
-        // Tự động xác định đường dẫn yt-dlp: ưu tiên file local nếu trên Windows
+        // Tự động giải mã link rút gọn (Douyin/TikTok) trước khi tải
+        if (strpos($url, 'v.douyin.com') !== false || strpos($url, 'vt.tiktok.com') !== false) {
+            $url = $this->expandUrl($url);
+        }
+
+        // Tự động xác định đường dẫn yt-dlp
         $ytDlp = 'yt-dlp';
         if (PHP_OS_FAMILY === 'Windows') {
             $localExe = base_path('yt-dlp.exe');
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        // Tự động thử cập nhật yt-dlp nếu là server Linux (giúp duy trì tương thích Douyin/TikTok)
-        if (PHP_OS_FAMILY !== 'Windows' && rand(1, 5) === 1) {
-            @shell_exec("yt-dlp -U");
-        }
-
-        $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+        // Thử tải lần 1 với User-Agent Mobile (thường ít bị chặn hơn)
+        $userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
         $options = [
             "--no-playlist",
             "--no-check-certificates",
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
+            "--add-header \"Referer: https://www.douyin.com/\"",
         ];
         $flags = implode(' ', $options);
 
@@ -132,9 +134,10 @@ class VideoProcessorService
         
         $files = glob("{$path}.*");
         
-        // Bước 2: Nếu thất bại, thử chế độ cực kỳ đơn giản (thường giúp vượt qua các link bị chặn mạnh)
+        // Bước 2: Nếu thất bại, thử tải với User-Agent Desktop và định dạng cơ bản nhất
         if (empty($files)) {
-            $cmdSimple = "{$ytDlp} {$flags} -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+            $userAgentDesktop = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+            $cmdSimple = "{$ytDlp} --no-playlist --no-check-certificates --user-agent " . escapeshellarg($userAgentDesktop) . " -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
             shell_exec($cmdSimple);
             $files = glob("{$path}.*");
         }
@@ -145,6 +148,25 @@ class VideoProcessorService
         }
         
         return $files[0];
+    }
+
+    protected function expandUrl($url)
+    {
+        try {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_HEADER, false);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            curl_exec($ch);
+            $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+            curl_close($ch);
+            return $effectiveUrl ?: $url;
+        } catch (\Exception $e) {
+            return $url;
+        }
     }
 
     protected function getDuration($path)
