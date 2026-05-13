@@ -138,17 +138,26 @@ class VideoProcessorService
         exec($cmd, $output, $result);
         $files = glob("{$path}.*");
         
-        // Bước 2: Cứu hộ bằng đề xuất của bạn (Thay playwm -> play) kết hợp Lovetik/TikWM
+        // Bước 2: Cứu hộ đa tầng (URL Surgery -> Lovetik -> TikWM -> SnapTik)
         if (empty($files) && (strpos($originalUrl, 'douyin.com') !== false || strpos($originalUrl, 'tiktok.com') !== false)) {
-            Log::info("yt-dlp failed, trying URL Surgery & Fallbacks for: {$originalUrl}");
+            Log::info("yt-dlp failed, starting multi-tier rescue for: {$originalUrl}");
             
-            // Thử Lovetik và áp dụng kỹ thuật đổi playwm -> play nếu cần
+            // Tầng 2: Lovetik (Có đổi playwm -> play)
             if ($this->downloadFromLovetik($originalUrl, $path)) {
                 $files = glob("{$path}.*");
             }
             
+            // Tầng 3: TikWM
             if (empty($files)) {
                 if ($this->downloadFromTikWM($originalUrl, $path)) {
+                    $files = glob("{$path}.*");
+                }
+            }
+
+            // Tầng 4: SnapTik (Trùm cuối)
+            if (empty($files)) {
+                Log::info("Trying SnapTik fallback for: {$originalUrl}");
+                if ($this->downloadFromSnapTik($originalUrl, $path)) {
                     $files = glob("{$path}.*");
                 }
             }
@@ -159,10 +168,37 @@ class VideoProcessorService
         if (empty($files)) {
             $errorLog = implode("\n", array_slice($output, -5));
             Log::error("Download failed final: {$originalUrl}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Douyin chặn quá gắt. Hãy thử lấy lại Cookie mới từ trình duyệt.");
+            throw new \Exception("Lỗi tải file: Douyin chặn quá gắt. Hãy thử lấy lại Cookie mới hoặc kiểm tra lại link.");
         }
         
         return $files[0];
+    }
+
+    protected function downloadFromSnapTik($url, $path)
+    {
+        try {
+            $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+            
+            // SnapTik thường yêu cầu lấy token trước, nhưng chúng ta thử qua API trung gian nhanh
+            $apiUrl = "https://api.tikmate.app/api/lookup?url=" . urlencode($url);
+            $ch = curl_init($apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, $userAgent);
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $data = json_decode($response, true);
+            if ($data && isset($data['url'])) {
+                $videoUrl = $data['url'];
+                $videoData = @file_get_contents($videoUrl);
+                if ($videoData && strlen($videoData) > 1000) {
+                    file_put_contents($path . ".mp4", $videoData);
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Exception $e) { return false; }
     }
 
     protected function generateNetscapeCookies($filePath)
