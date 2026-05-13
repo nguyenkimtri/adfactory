@@ -170,18 +170,40 @@ class VideoProcessorService
         $rawCookie = env('DOUYIN_COOKIE');
         if (!$rawCookie) return;
 
-        $cookies = explode(';', $rawCookie);
         $content = "# Netscape HTTP Cookie File\n";
-        foreach ($cookies as $cookie) {
-            $parts = explode('=', trim($cookie), 2);
-            if (count($parts) == 2) {
-                $name = $parts[0];
-                $value = $parts[1];
-                $domain = ".douyin.com";
-                // Định dạng: domain, TRUE/FALSE, path, secure, expiration, name, value
-                $content .= "{$domain}\tTRUE\t/\tFALSE\t" . (time() + 86400 * 30) . "\t{$name}\t{$value}\n";
+        
+        // Kiểm tra xem có phải định dạng JSON không
+        $jsonData = json_decode($rawCookie, true);
+        
+        if (is_array($jsonData)) {
+            // Xử lý định dạng JSON (như bạn vừa gửi)
+            foreach ($jsonData as $cookie) {
+                $domain = $cookie['domain'] ?? '.douyin.com';
+                $flag = strpos($domain, '.') === 0 ? 'TRUE' : 'FALSE';
+                $path = $cookie['path'] ?? '/';
+                $secure = ($cookie['secure'] ?? false) ? 'TRUE' : 'FALSE';
+                $expiry = isset($cookie['expirationDate']) ? (int)$cookie['expirationDate'] : (time() + 86400 * 30);
+                $name = $cookie['name'] ?? '';
+                $value = $cookie['value'] ?? '';
+                
+                if ($name && $value) {
+                    $content .= "{$domain}\t{$flag}\t{$path}\t{$secure}\t{$expiry}\t{$name}\t{$value}\n";
+                }
+            }
+        } else {
+            // Xử lý định dạng chuỗi thô (Key=Value; Key2=Value2)
+            $cookies = explode(';', $rawCookie);
+            foreach ($cookies as $cookie) {
+                $parts = explode('=', trim($cookie), 2);
+                if (count($parts) == 2) {
+                    $name = $parts[0];
+                    $value = $parts[1];
+                    $domain = ".douyin.com";
+                    $content .= "{$domain}\tTRUE\t/\tFALSE\t" . (time() + 86400 * 30) . "\t{$name}\t{$value}\n";
+                }
             }
         }
+        
         file_put_contents($filePath, $content);
     }
 
