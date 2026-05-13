@@ -211,7 +211,17 @@ class VideoProcessorService
 
     protected function generateNetscapeCookies($filePath)
     {
-        $rawCookie = env('DOUYIN_COOKIE');
+        $rawCookie = null;
+        $cookieFile = storage_path('app/douyin_cookie.json');
+
+        if (file_exists($cookieFile)) {
+            $rawCookie = file_get_contents($cookieFile);
+            Log::info("Using cookie from file: {$cookieFile}");
+        } else {
+            $rawCookie = env('DOUYIN_COOKIE');
+            if ($rawCookie) Log::info("Using cookie from .env");
+        }
+
         if (!$rawCookie) return;
 
         $content = "# Netscape HTTP Cookie File\n";
