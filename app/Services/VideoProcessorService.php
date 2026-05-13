@@ -116,7 +116,7 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        // Thử tải với bộ Headers "siêu giả lập" trình duyệt Desktop
+        // Bước 1: Thử tải bằng yt-dlp với bộ Headers giả lập
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
         $options = [
             "--no-playlist",
@@ -124,34 +124,63 @@ class VideoProcessorService
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
-            "--add-header \"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8\"",
-            "--add-header \"Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7\"",
-            "--add-header \"Sec-Fetch-Mode: navigate\"",
             "--add-header \"Referer: https://www.douyin.com/\"",
         ];
         $flags = implode(' ', $options);
 
-        // Bước 1: Thử tải gộp mp4 và ghi log chi tiết
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
         exec($cmd, $output, $result);
         
         $files = glob("{$path}.*");
         
-        // Bước 2: Nếu thất bại, thử tải ở chế độ "vô danh" (không User-Agent)
-        if (empty($files)) {
-            Log::warning("Yt-dlp step 1 failed for {$url}. Output: " . implode("\n", $output));
-            $cmdSimple = "{$ytDlp} --no-playlist --no-check-certificates -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
-            exec($cmdSimple, $output2, $result2);
-            $files = glob("{$path}.*");
+        // Bước 2: Nếu yt-dlp thất bại (thường do thiếu Cookie), dùng API cứu hộ (TikWM)
+        if (empty($files) && (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false)) {
+            Log::info("Yt-dlp failed, attempting 3rd-party fallback for: {$url}");
+            if ($this->downloadFromThirdParty($url, $path)) {
+                $files = glob("{$path}.*");
+            }
         }
 
         if (empty($files)) {
-            $errorLog = implode("\n", array_slice($output, -10));
+            $errorLog = implode("\n", array_slice($output, -5));
             Log::error("Download failed final: {$url}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Hệ thống bị chặn hoặc link không tồn tại. (URL: {$url}).");
+            throw new \Exception("Lỗi tải file: Douyin chặn truy cập hoặc link hỏng. Hãy thử lại sau ít phút.");
         }
         
         return $files[0];
+    }
+
+    protected function downloadFromThirdParty($url, $path)
+    {
+        try {
+            // Sử dụng TikWM API (Hỗ trợ cả Douyin và TikTok)
+            $apiUrl = "https://www.tikwm.com/api/?url=" . urlencode($url);
+            $ch = curl_init($apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            
+            $data = json_decode($response, true);
+            if ($data && isset($data['code']) && $data['code'] === 0) {
+                // Ưu tiên bản không logo (hdplay hoặc play)
+                $videoUrl = $data['data']['hdplay'] ?? $data['data']['play'] ?? null;
+                if ($videoUrl) {
+                    if (strpos($videoUrl, 'http') !== 0) $videoUrl = "https://www.tikwm.com" . $videoUrl;
+                    
+                    $videoData = file_get_contents($videoUrl);
+                    if ($videoData) {
+                        file_put_contents($path . ".mp4", $videoData);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (\Exception $e) {
+            Log::error("ThirdParty Download Error: " . $e->getMessage());
+            return false;
+        }
     }
 
     protected function expandUrl($url)
