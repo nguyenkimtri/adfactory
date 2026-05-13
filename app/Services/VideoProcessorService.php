@@ -116,35 +116,39 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
-        // Thử tải lần 1 với User-Agent Mobile (thường ít bị chặn hơn)
-        $userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1";
+        // Thử tải với bộ Headers "siêu giả lập" trình duyệt Desktop
+        $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
         $options = [
             "--no-playlist",
             "--no-check-certificates",
             "--no-warnings",
             "--ignore-errors",
             "--user-agent " . escapeshellarg($userAgent),
+            "--add-header \"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8\"",
+            "--add-header \"Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7\"",
+            "--add-header \"Sec-Fetch-Mode: navigate\"",
             "--add-header \"Referer: https://www.douyin.com/\"",
         ];
         $flags = implode(' ', $options);
 
-        // Bước 1: Thử tải gộp mp4
+        // Bước 1: Thử tải gộp mp4 và ghi log chi tiết
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
-        shell_exec($cmd);
+        exec($cmd, $output, $result);
         
         $files = glob("{$path}.*");
         
-        // Bước 2: Nếu thất bại, thử tải với User-Agent Desktop và định dạng cơ bản nhất
+        // Bước 2: Nếu thất bại, thử tải ở chế độ "vô danh" (không User-Agent)
         if (empty($files)) {
-            $userAgentDesktop = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-            $cmdSimple = "{$ytDlp} --no-playlist --no-check-certificates --user-agent " . escapeshellarg($userAgentDesktop) . " -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
-            shell_exec($cmdSimple);
+            Log::warning("Yt-dlp step 1 failed for {$url}. Output: " . implode("\n", $output));
+            $cmdSimple = "{$ytDlp} --no-playlist --no-check-certificates -f \"best\" -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
+            exec($cmdSimple, $output2, $result2);
             $files = glob("{$path}.*");
         }
 
         if (empty($files)) {
-            Log::error("Không thể tải tài nguyên từ: {$url}");
-            throw new \Exception("Lỗi tải file: Hệ thống không hỗ trợ link này hoặc bị chặn (URL: {$url}).");
+            $errorLog = implode("\n", array_slice($output, -10));
+            Log::error("Download failed final: {$url}. Log: {$errorLog}");
+            throw new \Exception("Lỗi tải file: Hệ thống bị chặn hoặc link không tồn tại. (URL: {$url}).");
         }
         
         return $files[0];
