@@ -104,8 +104,14 @@ class VideoProcessorService
     {
         $path = "{$this->tempDir}/{$name}";
         
-        if (strpos($url, 'v.douyin.com') !== false || strpos($url, 'vt.tiktok.com') !== false) {
+        // Giải mã và làm sạch link (v.douyin.com -> www.douyin.com/video/ID)
+        if (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false) {
             $url = $this->expandUrl($url);
+            // Làm sạch link: giữ lại phần ID, bỏ các tham số rác phía sau (?)
+            if (strpos($url, '?') !== false) {
+                $url = explode('?', $url)[0];
+            }
+            Log::info("URL expanded and cleaned: " . $url);
         }
 
         $ytDlp = 'yt-dlp';
