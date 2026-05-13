@@ -116,6 +116,9 @@ class VideoProcessorService
             $ytDlp = file_exists($localExe) ? '"' . $localExe . '"' : 'yt-dlp.exe';
         }
 
+        // Lấy Cookie từ .env nếu có (giúp vượt qua lỗi "Fresh cookies needed")
+        $customCookie = env('DOUYIN_COOKIE');
+        
         // Bước 1: Thử tải bằng yt-dlp với bộ Headers giả lập
         $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
         $options = [
@@ -126,6 +129,10 @@ class VideoProcessorService
             "--user-agent " . escapeshellarg($userAgent),
             "--add-header \"Referer: https://www.douyin.com/\"",
         ];
+
+        if ($customCookie && (strpos($url, 'douyin.com') !== false || strpos($url, 'tiktok.com') !== false)) {
+            $options[] = "--add-header \"Cookie: " . str_replace('"', '\"', $customCookie) . "\"";
+        }
         $flags = implode(' ', $options);
 
         $cmd = "{$ytDlp} {$flags} -f \"bestvideo+bestaudio/best\" --merge-output-format mp4 -o \"{$path}.%(ext)s\" " . escapeshellarg($url) . " 2>&1";
@@ -144,7 +151,7 @@ class VideoProcessorService
         if (empty($files)) {
             $errorLog = implode("\n", array_slice($output, -5));
             Log::error("Download failed final: {$url}. Log: {$errorLog}");
-            throw new \Exception("Lỗi tải file: Douyin chặn truy cập hoặc link hỏng. Hãy thử lại sau ít phút.");
+            throw new \Exception("Lỗi tải file: Douyin chặn hoặc Cookie hết hạn. (URL: {$url}).");
         }
         
         return $files[0];
